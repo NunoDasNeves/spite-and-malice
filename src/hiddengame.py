@@ -1,9 +1,17 @@
 from game import *
 
-MOVE_PLAY_FROM_HAND=0
-MOVE_PLAY_FROM_DISCARD=1
-MOVE_PLAY_FROM_GOAL=2
+MOVE_PLAY_FROM_GOAL=0
+MOVE_PLAY_FROM_HAND=1
+MOVE_PLAY_FROM_DISCARD=2
 MOVE_END_TURN=3
+
+MOVE_NAMES={
+        MOVE_PLAY_FROM_GOAL: "Play your goal card",
+        MOVE_PLAY_FROM_HAND: "Play from your hand",
+        MOVE_PLAY_FROM_DISCARD: "Play from a discard pile",
+        MOVE_END_TURN: "End your turn (discard)"
+        }
+
 
 class HiddenGame:
     '''
@@ -23,43 +31,32 @@ class HiddenGame:
         self.current_player = game.current_player
         self.player_hand = game.player_hands[self.current_player][:]
 
+        self.is_valid_play = game.is_valid_play
+
         # functions for generically doing moves
-        self.move_list = [game.play_from_hand, game.play_from_discard, game.play_from_goal, game.end_turn]
+        self.move_list = [game.play_from_goal, game.play_from_hand, game.play_from_discard, game.end_turn]
 
         # not sure if needed/useful
         self.draw_pile_size = len(game.draw_pile)
 
-    def is_valid_play(self, card, play_pile_index):
-        '''
-            Check if a card can be played onto a given play pile
-            Assume that the play pile has less than MAX_CARDS_PER_PLAY_PILE
-        '''
-        # wild cards can be played on any pile
-        if card.is_wild():
-            return True
-        play_pile_length = len(self.play_piles[play_pile_index])
-        # empty piles can only have aces played on them
-        if play_pile_length == 0 and card.value == 1:
-            return True
-        # nonempty piles
-        if play_pile_length + 1 == card.value:
-            return True
-        return False
-
     def get_legal_moves(self):
         '''
-            Return a list of all legal moves for the current player
-            Each move is a tuple of (move_type, (args))
-
+            Return a tuple of all legal moves for the current player
+            Each entry is a list of moves for a type of move corresponding to the index in the tuple
+            Each entry in each list is the args for the move
+            e.g. ([args, args, args], [args], [], [args, args])
         '''
-        legal_moves = []
+        from_goal = []
+        from_hand = []
+        from_discard = []
+        end_turn = []
 
         for card in self.player_hand:
             for i in range(NUM_PLAY_PILES):
                 if self.is_valid_play(card, i):
-                    legal_moves.append((MOVE_PLAY_FROM_HAND, (card, i)))
+                    from_hand.append((card, i))
             for i in range(NUM_DISCARD_PILES):
-                legal_moves.append((MOVE_END_TURN, (card, i)))
+                end_turn.append((card, i))
 
         for i in range(NUM_DISCARD_PILES):
             if len(self.discard_piles[self.current_player][i]) == 0:
@@ -67,15 +64,15 @@ class HiddenGame:
             card = self.discard_piles[self.current_player][i][-1]
             for j in range(NUM_PLAY_PILES):
                 if self.is_valid_play(card, i):
-                    legal_moves.append((MOVE_PLAY_FROM_DISCARD, (i, j)))
+                    from_discard.append((i, j))
 
         for i in range(NUM_PLAY_PILES):
             if self.is_valid_play(self.goal_cards[self.current_player], i):
-                legal_moves.append((MOVE_PLAY_FROM_GOAL, (i,)))
+                from_goal.append((i,))
 
-        return legal_moves
+        return (from_goal, from_hand, from_discard, end_turn)
 
-    def move_repr(self, move):
+    def move_repr(self, move_type, args):
         '''
             Pretty print a move current player can make
         '''
@@ -84,34 +81,34 @@ class HiddenGame:
         on_card = None
         pile_index = None
 
-        if move[0] == MOVE_END_TURN:
-            return "Ends their turn by discarding {} onto discard pile {}".format(move[1][0], move[1][1])
+        if move_type == MOVE_END_TURN:
+            return "End turn by discarding {} onto discard pile {}".format(args[0], args[1])
 
-        elif move[0] == MOVE_PLAY_FROM_HAND:
-            from_str = "from their hand"
-            card, pile_index = move[1][0], move[1][1]
+        elif move_type == MOVE_PLAY_FROM_HAND:
+            from_str = "from hand"
+            card, pile_index = args[0], args[1]
 
-        elif move[0] == MOVE_PLAY_FROM_DISCARD:
-            disc_index = move[1][0]
+        elif move_type == MOVE_PLAY_FROM_DISCARD:
+            disc_index = args[0]
             from_str = "from discard pile {}".format(disc_index)
-            card, pile_index = self.discard_piles[self.current_player][disc_index][-1], move[1][1]
+            card, pile_index = self.discard_piles[self.current_player][disc_index][-1], args[1]
 
-        elif move[0] == MOVE_PLAY_FROM_GOAL:
-            from_str = ": their topmost goal card"
-            card, pile_index = self.goal_cards[self.current_player], move[1][0]
+        elif move_type == MOVE_PLAY_FROM_GOAL:
+            from_str = ": topmost goal card"
+            card, pile_index = self.goal_cards[self.current_player], args[0]
 
         if len(self.play_piles[pile_index]) > 0:
             on_card = "the {} on pile {}".format(self.play_piles[pile_index][-1], pile_index)
         else:
             on_card = "an empty space"
 
-        return "Plays {} {} onto {}".format(card, from_str, on_card)
+        return "Play {} {} onto {}".format(card, from_str, on_card)
 
-    def do_move(self, move):
+    def do_move(self, move, args):
         '''
             Do a move supplied as a tuple (move_id, args)
             return the newly created game
         '''
-        return self.move_list[move[0]](*move[1])
+        return self.move_list[move](*args)
 
 

@@ -16,11 +16,11 @@ class GameRunner:
             # get the current agent, and ask it what move it wants to do
             agent = self.agents[self.game.current_player]
             hg = HiddenGame(self.game)
-            move = agent.get_move(hg)
-            print("Player {} => {}".format(self.game.current_player, hg.move_repr(move)))
+            move, args = agent.get_move(hg)
+            print("Player {} => {}".format(self.game.current_player, hg.move_repr(move, args)))
             print("=========================================================")
             # now actually do the move
-            self.game = hg.do_move(move)
+            self.game = hg.do_move(move, args)
             # stop as soon as there is a winner
             if self.game.winner is not None:
                 return self.game.winner
