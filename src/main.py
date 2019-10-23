@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from game import Game
 from hiddengame import HiddenGame
 from humanagent import HumanAgent
@@ -19,7 +20,7 @@ class GameRunner:
             print("Player {} => {}".format(self.game.current_player, hg.move_repr(move)))
             print("=========================================================")
             # now actually do the move
-            self.game = self.game.do_move(move)
+            self.game = hg.do_move(move)
             # stop as soon as there is a winner
             if self.game.winner is not None:
                 return self.game.winner

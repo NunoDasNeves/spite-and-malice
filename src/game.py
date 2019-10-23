@@ -6,11 +6,6 @@ NUM_DISCARD_PILES=4
 NUM_PLAY_PILES=4
 MAX_CARDS_PER_PLAY_PILE=12
 
-MOVE_PLAY_FROM_HAND=0
-MOVE_PLAY_FROM_DISCARD=1
-MOVE_PLAY_FROM_GOAL=2
-MOVE_END_TURN=3
-
 class Game:
     '''
         An abstract game of spite and malice
@@ -33,9 +28,6 @@ class Game:
         self.hand_size = hand_size
         self.goal_size = goal_size
         self.winner = None
-
-        # self functions for generically doing moves
-        self.move_list = [self.play_from_hand, self.play_from_discard, self.play_from_goal, self.end_turn]
 
         # Make a deck
         decks = make_decks(num_decks)
@@ -60,7 +52,6 @@ class Game:
             Clone the game object, deep copying everything except the cards themselves
         '''
         clone = shallow_copy(self)
-        clone.move_list = [clone.play_from_hand, clone.play_from_discard, clone.play_from_goal, clone.end_turn]
         clone.goal_piles = [pile[:] for pile in self.goal_piles]
         clone.player_hands = [hand[:] for hand in self.player_hands]
         clone.goal_cards = self.goal_cards[:]
@@ -187,11 +178,4 @@ class Game:
         num_to_draw = game.hand_size - len(game.player_hands[game.current_player])
         game.player_hands[game.current_player] += draw_N(game.draw_pile, num_to_draw)
         return game
-
-    def do_move(self, move):
-        '''
-            Do a move supplied as a tuple (move_id, args)
-            return the newly created game
-        '''
-        return self.move_list[move[0]](*move[1])
 

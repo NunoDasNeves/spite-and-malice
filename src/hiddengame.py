@@ -23,6 +23,9 @@ class HiddenGame:
         self.current_player = game.current_player
         self.player_hand = game.player_hands[self.current_player][:]
 
+        # functions for generically doing moves
+        self.move_list = [game.play_from_hand, game.play_from_discard, game.play_from_goal, game.end_turn]
+
         # not sure if needed/useful
         self.draw_pile_size = len(game.draw_pile)
 
@@ -103,4 +106,12 @@ class HiddenGame:
             on_card = "an empty space"
 
         return "Plays {} {} onto {}".format(card, from_str, on_card)
+
+    def do_move(self, move):
+        '''
+            Do a move supplied as a tuple (move_id, args)
+            return the newly created game
+        '''
+        return self.move_list[move[0]](*move[1])
+
 
