@@ -1,4 +1,4 @@
-from hiddengame import HiddenGame, MOVE_NAMES
+from hiddengame import HiddenGame, MOVE_TYPES
 
 class HumanAgent:
     '''
@@ -39,7 +39,7 @@ class HumanAgent:
             print("Choose a type of move: ")
             for i, moves in zip(range(len(legal_moves)), legal_moves):
                 if len(moves) > 0:
-                    print("  {}. {}".format(i, MOVE_NAMES[i]))
+                    print("  {}. {}".format(i, MOVE_TYPES[i]))
                 else:
                     print("  {}. << Can't do this right now >>".format(i))
 

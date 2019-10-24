@@ -2,6 +2,7 @@
 from game import Game
 from hiddengame import HiddenGame
 from humanagent import HumanAgent
+from basicagent import BasicAgent
 from time import sleep
 
 class GameRunner:
@@ -20,7 +21,7 @@ class GameRunner:
             print("Player {} => {}".format(self.game.current_player, hg.move_repr(move, args)))
             print("=========================================================")
             # now actually do the move
-            self.game = hg.do_move(move, args)
+            self.game = self.game.do_move(move, args)
             # stop as soon as there is a winner
             if self.game.winner is not None:
                 return self.game.winner
@@ -28,7 +29,8 @@ class GameRunner:
 
 def main():
     human_agent = HumanAgent()
-    game = GameRunner(Game(), [human_agent, human_agent])
+    basic_agent = BasicAgent()
+    game = GameRunner(Game(), [human_agent, basic_agent])
     game.play()
 
 if __name__=='__main__':

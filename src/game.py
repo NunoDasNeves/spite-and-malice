@@ -29,6 +29,9 @@ class Game:
         self.goal_size = goal_size
         self.winner = None
 
+        # functions for generically doing moves
+        self.move_list = (self.play_from_goal, self.play_from_hand, self.play_from_discard, self.end_turn)
+
         # Make a deck
         decks = make_decks(num_decks)
 
@@ -58,6 +61,7 @@ class Game:
         clone.discard_piles = [[pile[:] for pile in piles] for piles in self.discard_piles]
         clone.play_piles = [pile[:] for pile in self.play_piles]
         clone.draw_pile = self.draw_pile[:]
+        clone.move_list = (clone.play_from_goal, clone.play_from_hand, clone.play_from_discard, clone.end_turn)
         return clone
 
     def is_valid_play(self, card, play_pile_index):
@@ -81,6 +85,9 @@ class Game:
         if len(self.play_piles[play_pile_index]) == MAX_CARDS_PER_PLAY_PILE:
             self.draw_pile += self.play_piles[play_pile_index]
             self.play_piles[play_pile_index] = []
+
+    def get_play_pile_values(self):
+        return [len(pile) for pile in self.play_piles]
 
     def play_from_hand(self, card, play_pile_index):
         '''
@@ -115,16 +122,16 @@ class Game:
         if self.winner is not None:
             raise RuntimeError("Game is over!")
         # validate the play
-        if len(self.discard_piles[self.current_player][self.discard_pile_index]) == 0:
+        if len(self.discard_piles[self.current_player][discard_pile_index]) == 0:
             raise RuntimeError("Can't play from an empty discard pile!")
-        card = self.discard_piles[self.current_player][self.discard_pile_index][-1]
+        card = self.discard_piles[self.current_player][discard_pile_index][-1]
         if not self.is_valid_play(card, play_pile_index):
             raise RuntimeError("Invalid play! {} on top of {}".format(card, self.play_piles[play_pile_index]))
 
         # copy the game
         game = self.copy()
         # make the play
-        game.discard_piles[self.current_player][self.discard_pile_index].pop()
+        game.discard_piles[self.current_player][discard_pile_index].pop()
         game.play_piles[play_pile_index].append(card)
         # check the pile to see if it's done
         game.check_play_pile(play_pile_index)
@@ -179,3 +186,9 @@ class Game:
         game.player_hands[game.current_player] += draw_N(game.draw_pile, num_to_draw)
         return game
 
+    def do_move(self, move, args):
+        '''
+            Do a move supplied as a tuple (move_id, args)
+            return the newly created Game
+        '''
+        return self.move_list[move](*args)

@@ -37,6 +37,9 @@ class Card:
     def is_wild(self):
         return self.value in WILD_VALUES
 
+    def __hash__(self):
+        return 13 if self.is_wild() else self.value
+
     def __repr__(self):
         if self.value == 14:
             return "Joker"
