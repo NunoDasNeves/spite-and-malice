@@ -8,7 +8,7 @@ MAX_CARDS_PER_PLAY_PILE=12
 
 class Game:
     '''
-        An abstract game of spite and malice
+        A simulated game of spite and malice
         Functions that progress the game return a new Game
     '''
     def __init__(self, num_players=2, num_decks=2, goal_size=13, hand_size=4):

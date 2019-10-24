@@ -1,4 +1,14 @@
 from hiddengame import *
+from game import *
+from cards import *
+
+def rig_game(game, agent_id):
+    '''
+        Rig a game for testing stuff
+    '''
+    game.goal_cards[agent_id] = Card(3, "Spades")
+    game.player_hands[agent_id] = [Card(1, "Hearts"), Card(2, "Diamonds"), Card(3, "Hearts"), Card(9, "Clubs")]
+    return game
 
 class BasicAgent:
     '''
@@ -17,10 +27,15 @@ class BasicAgent:
         '''
         states = []
         legal_moves = hg.get_legal_moves()
+        #print("hg play piles:",hg.play_piles)
+        #print("hg player hand:",hg.player_hand)
+        #print("hg legal moves:",len(legal_moves[MOVE_PLAY_HAND]))
         for move_type in [MOVE_PLAY_HAND, MOVE_PLAY_DISCARD, MOVE_PLAY_GOAL]:
             for args in legal_moves[move_type]:
+                #print(hg.move_repr(move_type, args))
                 new_hg = hg.do_move(move_type, args)
                 states.append(((move_type, args), new_hg))
+        #print([hg.move_repr(*state[0]) for state in states])
         return states
 
     def can_play_goal(self, hg):
@@ -38,11 +53,14 @@ class BasicAgent:
 
         while len(queue) > 0:
             state = queue.pop()
+            #print([state[1].move_repr(*state[0]) for state in queue])
             # if we can play the goal card, we're done
             if state[0][0] == MOVE_PLAY_GOAL:
                 goal_state = state
                 break
+
             for child_state in self.get_child_states(state[1]):
+                #print(child_state[1].play_piles)
                 if child_state in map_back:
                     continue
                 map_back[child_state] = state

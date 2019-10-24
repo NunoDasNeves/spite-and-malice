@@ -2,7 +2,7 @@
 from game import Game
 from hiddengame import HiddenGame
 from humanagent import HumanAgent
-from basicagent import BasicAgent
+from basicagent import BasicAgent, rig_game
 from time import sleep
 
 class GameRunner:
@@ -25,12 +25,13 @@ class GameRunner:
             # stop as soon as there is a winner
             if self.game.winner is not None:
                 return self.game.winner
-            sleep(1)
+            sleep(0.5)
 
 def main():
     human_agent = HumanAgent()
     basic_agent = BasicAgent()
-    game = GameRunner(Game(), [human_agent, basic_agent])
+    game = rig_game(Game(), 0)
+    game = GameRunner(game, [basic_agent, human_agent])
     game.play()
 
 if __name__=='__main__':

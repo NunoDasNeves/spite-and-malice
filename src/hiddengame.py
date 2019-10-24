@@ -13,7 +13,7 @@ MOVE_TYPES={
         }
 
 
-class HiddenGame:
+class HiddenGame(Game):
     '''
         A class representing a Game from one player's perspective
         Information that player shouldn't be able to see isn't present
@@ -35,11 +35,6 @@ class HiddenGame:
 
         # The player whose perspective this hidden game is from
         self.this_player = game.current_player
-
-        # functions from game
-        self.is_valid_play = game.is_valid_play
-        self.check_play_pile = game.check_play_pile
-        self.get_play_pile_values = game.get_play_pile_values
 
         # not sure if needed/useful
         self.draw_pile_size = len(game.draw_pile)
