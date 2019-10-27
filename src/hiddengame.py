@@ -129,12 +129,3 @@ class HiddenGame(Game):
             Since HiddenGame doesn't reveal much about other players, this won't be useful...
         '''
         raise RuntimeError("HiddenGame doesn't support end_turn!")
-
-    def do_move(self, move, args):
-        '''
-            'Do' a move (hidden information remains hidden) supplied as a tuple (move_id, args)
-            return the newly created HiddenGame
-        '''
-        move_list = (self.play_from_goal, self.play_from_hand, self.play_from_discard, self.end_turn)
-        return move_list[move](*args)
-
