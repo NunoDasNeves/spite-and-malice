@@ -47,23 +47,6 @@ class HiddenGame(Game):
             if isinstance(value, list):
                 self.__dict__[attr] = copy_nested(value, immutable=True)
 
-    def __hash__(self):
-        #
-        return hash(tuple([v for a, v in self.__dict__.items() if not a.startswith('__')]))
-        '''
-            self.num_players,
-            self.num_decks,
-            self.hand_size,
-            self.goal_size,
-            self.current_player,
-            self.winner,
-            self.goal_cards,
-            self.discard_piles,
-            self.play_piles,
-            self.player_hands
-        ))
-        '''
-
     def get_legal_moves(self):
         '''
             Return a tuple of all legal moves for the current player
