@@ -1,4 +1,5 @@
 from game import *
+from utils import copy_nested
 
 MOVE_PLAY_GOAL=0
 MOVE_PLAY_HAND=1
@@ -28,52 +29,23 @@ class HiddenGame(Game):
         self.current_player = game.current_player
         self.winner = game.winner
         self.goal_cards = game.goal_cards[:]
-        self.goal_pile_sizes = [len(pile) for pile in game.goal_piles]
-        self.discard_piles = [[pile[:] for pile in piles] for piles in game.discard_piles]
-        self.play_piles = [pile[:] for pile in game.play_piles]
-        self.player_hand = game.player_hands[self.current_player][:]
-
-        # The player whose perspective this hidden game is from
-        self.this_player = game.current_player
-
-        # not sure if needed/useful
-        self.draw_pile_size = len(game.draw_pile)
+        self.discard_piles = copy_nested(game.discard_piles)
+        self.play_piles = copy_nested(game.play_piles)
+        # mask other player hands
+        self.player_hands = copy_nested(game.player_hands)
+        self.player_hands = [
+            hand if i == self.current_player else None \
+                for i, hand in zip(range(len(self.player_hands)), self.player_hands)
+            ]
 
         self.make_immutable()
 
-    def mutable_copy(self):
-        '''
-            Clone the hidden game object, deep copying everything except the cards themselves
-        '''
-        clone = shallow_copy(self)
-        clone.goal_cards = list(self.goal_cards[:])
-        clone.goal_pile_sizes = list(self.goal_pile_sizes[:])
-        clone.discard_piles = [[list(pile[:]) for pile in piles] for piles in self.discard_piles]
-        clone.play_piles = [list(pile[:]) for pile in self.play_piles]
-        clone.player_hand = list(self.player_hand[:])
-        return clone
-    
     def make_immutable(self):
-        self.goal_cards = tuple(self.goal_cards)
-        self.goal_pile_sizes = tuple(self.goal_pile_sizes)
-        self.discard_piles = tuple([tuple([tuple(pile) for pile in piles]) for piles in self.discard_piles])
-        self.play_piles = tuple([tuple(pile) for pile in self.play_piles])
-        self.player_hand = tuple(self.player_hand)
-
-    def __hash__(self):
-        return hash((
-            self.num_players,
-            self.num_decks,
-            self.hand_size,
-            self.goal_size,
-            self.current_player,
-            self.winner,
-            self.goal_cards,
-            self.discard_piles,
-            self.play_piles,
-            self.player_hand,
-            self.this_player
-        ))
+        for attr, value in self.__dict__.items():
+            if attr.startswith('__'):
+                continue
+            if isinstance(value, list):
+                self.__dict__[attr] = copy_nested(value, immutable=True)
 
     def get_legal_moves(self):
         '''
@@ -87,7 +59,7 @@ class HiddenGame(Game):
         from_discard = []
         end_turn = []
 
-        for card in self.player_hand:
+        for card in self.player_hands[self.current_player]:
             for i in range(NUM_PLAY_PILES):
                 if self.is_valid_play(card, i):
                     from_hand.append((card, i))
@@ -99,7 +71,7 @@ class HiddenGame(Game):
                 continue
             card = self.discard_piles[self.current_player][i][-1]
             for j in range(NUM_PLAY_PILES):
-                if self.is_valid_play(card, i):
+                if self.is_valid_play(card, j):
                     from_discard.append((i, j))
 
         for i in range(NUM_PLAY_PILES):
@@ -140,114 +112,20 @@ class HiddenGame(Game):
 
         return "Play {} {} onto {}".format(card, from_str, on_card)
 
-    def play_from_hand(self, card, play_pile_index):
+    def do_other_work(self):
         '''
-            Play a card from the current player's hand onto a play pile
-            Returns a new game state
+            Do everything that isn't shared with Game
         '''
-        if self.winner is not None:
-            raise RuntimeError("Game is over!")
-        # validate the play
-        if self.current_player != self.this_player:
-            raise RuntimeError("You don't know that they have that card!")
-        if card not in self.player_hand:
-            raise RuntimeError("Can't play that card - it's not in your hand!")
-        if not self.is_valid_play(card, play_pile_index):
-            raise RuntimeError("Invalid play! {} on top of {}".format(card, self.play_piles[play_pile_index]))
+        # remove full play piles
+        for i in range(len(self.play_piles)):
+            if len(self.play_piles[i]) == MAX_CARDS_PER_PLAY_PILE:
+                self.play_piles[i] = []
 
-        # copy the game
-        game = self.mutable_copy()
-        # make the play
-        game.player_hand.remove(card)
-        game.play_piles[play_pile_index].append(card)
-        # check the pile to see if it's done
-        game.check_play_pile(play_pile_index)
-        # if player's hand is empty, draw another hand of cards
-        # <not done in hiddengame>
-        game.make_immutable()
-        return game
-
-    def play_from_discard(self, discard_pile_index, play_pile_index):
-        '''
-            Play a card from one of the current player's discard piles
-            Returns a new game state
-        '''
-        if self.winner is not None:
-            raise RuntimeError("Game is over!")
-        # validate the play
-        if len(self.discard_piles[self.current_player][discard_pile_index]) == 0:
-            raise RuntimeError("Can't play from an empty discard pile!")
-        card = self.discard_piles[self.current_player][discard_pile_index][-1]
-        if not self.is_valid_play(card, play_pile_index):
-            raise RuntimeError("Invalid play! {} on top of {}".format(card, self.play_piles[play_pile_index]))
-
-        # copy the game
-        game = self.mutable_copy()
-        # make the play
-        game.discard_piles[self.current_player][discard_pile_index].pop()
-        game.play_piles[play_pile_index].append(card)
-        # check the pile to see if it's done
-        game.check_play_pile(play_pile_index)
-        game.make_immutable()
-        return game
-
-    def play_from_goal(self, play_pile_index):
-        '''
-            Play the current player's goal card
-            Returns a new game state
-        '''
-        if self.winner is not None:
-            raise RuntimeError("Game is over!")
-        # validate the play
-        card = self.goal_cards[self.current_player]
-        if not self.is_valid_play(card, play_pile_index):
-            raise RuntimeError("Invalid play! {} on top of {}".format(card, self.play_piles[play_pile_index]))
-
-        # copy the game
-        game = self.mutable_copy()
-        # make the play
-        game.play_piles[play_pile_index].append(card)
-        if game.goal_pile_sizes[game.current_player] > 0:
-            game.goal_cards[game.current_player] = None
-            # check the pile to see if it's done
-            game.check_play_pile(play_pile_index)
-        else:
-            # if the goal pile is empty, the current player won!
-            game.winner = game.current_player
-        game.make_immutable()
-        return game
+        # make lists into tuples
+        self.make_immutable()
 
     def end_turn(self, card, discard_pile_index):
         '''
-            End the current player's turn, discarding one card from their hand
-            Returns a new game state
+            Since HiddenGame doesn't reveal much about other players, this won't be useful...
         '''
-        if self.winner is not None:
-            raise RuntimeError("Game is over!")
-
-        if self.current_player != self.this_player:
-            raise RuntimeError("You don't know that they have that card!")
-        # check the card is in their hand
-        if card not in self.player_hand:
-            raise RuntimeError("Can't discard that card - it's not in your hand!")
-
-        # copy the game
-        game = self.mutable_copy()
-        # discard the card
-        game.player_hand.remove(card)
-        game.discard_piles[game.current_player][discard_pile_index].append(card)
-        # Advance to the next player
-        game.current_player = (game.current_player + 1) % game.num_players
-        # Have them draw until their hand is full
-        # < can't do it here >
-        game.make_immutable()
-        return game
-
-    def do_move(self, move, args):
-        '''
-            'Do' a move (hidden information remains hidden) supplied as a tuple (move_id, args)
-            return the newly created HiddenGame
-        '''
-        move_list = (self.play_from_goal, self.play_from_hand, self.play_from_discard, self.end_turn)
-        return move_list[move](*args)
-
+        raise RuntimeError("HiddenGame doesn't support end_turn!")

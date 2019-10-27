@@ -90,7 +90,7 @@ class BasicAgent:
         # try to play a goal card at all costs
         if self.can_play_goal(hidden_game):
             move = self.path.pop()
-            print(move)
+            # print(move)
             return move
 
         # if no guaranteed goal path, try to empty hand
