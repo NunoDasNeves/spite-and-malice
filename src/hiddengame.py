@@ -99,7 +99,7 @@ class HiddenGame(Game):
                 continue
             card = self.discard_piles[self.current_player][i][-1]
             for j in range(NUM_PLAY_PILES):
-                if self.is_valid_play(card, i):
+                if self.is_valid_play(card, j):
                     from_discard.append((i, j))
 
         for i in range(NUM_PLAY_PILES):
