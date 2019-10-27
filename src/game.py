@@ -1,6 +1,7 @@
 import random
 from copy import copy as shallow_copy
 from cards import Card, draw, draw_N, make_decks, NUM_CARDS_PER_DECK
+from utils import copy_nested
 
 NUM_DISCARD_PILES=4
 NUM_PLAY_PILES=4
@@ -29,9 +30,6 @@ class Game:
         self.goal_size = goal_size
         self.winner = None
 
-        # functions for generically doing moves
-        self.move_list = (self.play_from_goal, self.play_from_hand, self.play_from_discard, self.end_turn)
-
         # Make a deck
         decks = make_decks(num_decks)
 
@@ -50,18 +48,19 @@ class Game:
         self.draw_pile = decks
         self.current_player = 0
 
-    def copy(self):
+    def copy_mutable(self):
         '''
             Clone the game object, deep copying everything except the cards themselves
         '''
         clone = shallow_copy(self)
-        clone.goal_piles = [pile[:] for pile in self.goal_piles]
-        clone.player_hands = [hand[:] for hand in self.player_hands]
-        clone.goal_cards = self.goal_cards[:]
-        clone.discard_piles = [[pile[:] for pile in piles] for piles in self.discard_piles]
-        clone.play_piles = [pile[:] for pile in self.play_piles]
-        clone.draw_pile = self.draw_pile[:]
-        clone.move_list = (clone.play_from_goal, clone.play_from_hand, clone.play_from_discard, clone.end_turn)
+
+        # deep copy as mutable
+        for attr, value in self.__dict__.items():
+            if attr.startswith('__'):
+                continue
+            if isinstance(value, tuple):
+                clone.__dict__[attr] = copy_nested(value)
+
         return clone
 
     def is_valid_play(self, card, play_pile_index):
@@ -81,14 +80,27 @@ class Game:
             return True
         return False
 
-    def check_play_pile(self, play_pile_index):
-        if len(self.play_piles[play_pile_index]) == MAX_CARDS_PER_PLAY_PILE:
-            self.draw_pile += self.play_piles[play_pile_index]
-            self.play_piles[play_pile_index] = []
+    def do_other_work(self):
+        '''
+            Do everything that isn't shared between Game and subclasses
+        '''
+        # shuffle full play piles back into deck
+        for i in range(len(self.play_piles)):
+            if len(self.play_piles[i]) == MAX_CARDS_PER_PLAY_PILE:
+                self.draw_pile += self.play_piles[i]
+                self.play_piles[i] = []
 
-    def get_play_pile_values(self):
-        return [len(pile) for pile in self.play_piles]
-
+        # restock current player's hand
+        if len(self.player_hands[self.current_player]) == 0:
+            self.player_hands[self.current_player] = draw_N(self.draw_pile, self.hand_size)
+        
+        # check for winner, flip next goal card
+        if len(self.goal_piles[self.current_player]) > 0:
+            if self.goal_cards[self.current_player] is None:
+                self.goal_cards[self.current_player] = draw(self.goal_piles[self.current_player])
+        else:
+            self.winner = self.current_player
+    
     def play_from_hand(self, card, play_pile_index):
         '''
             Play a card from the current player's hand onto a play pile
@@ -102,17 +114,17 @@ class Game:
         if not self.is_valid_play(card, play_pile_index):
             raise RuntimeError("Invalid play! {} on top of {}".format(card, self.play_piles[play_pile_index]))
 
-        # copy the game
-        game = self.copy()
-        # make the play
-        game.player_hands[game.current_player].remove(card)
-        game.play_piles[play_pile_index].append(card)
-        # check the pile to see if it's done
-        game.check_play_pile(play_pile_index)
-        # if player's hand is empty, draw another hand of cards
-        if len(game.player_hands[game.current_player]) == 0:
-            game.player_hands[game.current_player] = draw_N(game.draw_pile, game.hand_size)
-        return game
+        # Copy game
+        new_game = self.copy_mutable()
+
+        # Make the play
+        new_game.play_piles[play_pile_index].append(card)
+        new_game.player_hands[new_game.current_player].remove(card)
+
+        # Update play piles, repopulate player's hand
+        new_game.do_other_work()
+
+        return new_game
 
     def play_from_discard(self, discard_pile_index, play_pile_index):
         '''
@@ -128,15 +140,17 @@ class Game:
         if not self.is_valid_play(card, play_pile_index):
             raise RuntimeError("Invalid play! {} on top of {}".format(card, self.play_piles[play_pile_index]))
 
-        # copy the game
-        game = self.copy()
-        # make the play
-        game.discard_piles[self.current_player][discard_pile_index].pop()
-        game.play_piles[play_pile_index].append(card)
-        # check the pile to see if it's done
-        game.check_play_pile(play_pile_index)
-        return game
+        # Copy game
+        new_game = self.copy_mutable()
 
+        # Make the play
+        new_game.play_piles[play_pile_index].append(card)
+        new_game.discard_piles[new_game.current_player][discard_pile_index].pop()
+
+        # Update play piles
+        new_game.do_other_work()
+
+        return new_game
 
     def play_from_goal(self, play_pile_index):
         '''
@@ -150,18 +164,17 @@ class Game:
         if not self.is_valid_play(card, play_pile_index):
             raise RuntimeError("Invalid play! {} on top of {}".format(card, self.play_piles[play_pile_index]))
 
-        # copy the game
-        game = self.copy()
-        # make the play
-        game.play_piles[play_pile_index].append(card)
-        if len(game.goal_piles[game.current_player]) > 0:
-            game.goal_cards[game.current_player] = draw(game.goal_piles[game.current_player])
-            # check the pile to see if it's done
-            game.check_play_pile(play_pile_index)
-        else:
-            # if the goal pile is empty, the current player won!
-            game.winner = game.current_player
-        return game
+        # Copy game
+        new_game = self.copy_mutable()
+
+        # Make the play
+        new_game.play_piles[play_pile_index].append(card)
+        new_game.goal_cards[new_game.current_player] = None
+        
+        # Check play piles, flip next goal card
+        new_game.do_other_work()
+
+        return new_game
 
     def end_turn(self, card, discard_pile_index):
         '''
@@ -174,21 +187,26 @@ class Game:
         if card not in self.player_hands[self.current_player]:
             raise RuntimeError("Can't discard that card - it's not in your hand!")
 
-        # copy the game
-        game = self.copy()
+        # Copy the game
+        new_game = self.copy_mutable()
+        
         # discard the card
-        game.player_hands[game.current_player].remove(card)
-        game.discard_piles[game.current_player][discard_pile_index].append(card)
+        new_game.discard_piles[new_game.current_player][discard_pile_index].append(card)
+        new_game.player_hands[new_game.current_player].remove(card)
+        
         # Advance to the next player
-        game.current_player = (game.current_player + 1) % game.num_players
-        # Have them draw until their hand is full
-        num_to_draw = game.hand_size - len(game.player_hands[game.current_player])
-        game.player_hands[game.current_player] += draw_N(game.draw_pile, num_to_draw)
-        return game
+        new_game.current_player = (new_game.current_player + 1) % new_game.num_players
+
+        # Next player draws until their hand is full
+        num_to_draw = new_game.hand_size - len(new_game.player_hands[new_game.current_player])
+        new_game.player_hands[new_game.current_player] += draw_N(new_game.draw_pile, num_to_draw)
+
+        return new_game
 
     def do_move(self, move, args):
         '''
             Do a move supplied as a tuple (move_id, args)
             return the newly created Game
         '''
-        return self.move_list[move](*args)
+        move_list = (self.play_from_goal, self.play_from_hand, self.play_from_discard, self.end_turn)
+        return move_list[move](*args)

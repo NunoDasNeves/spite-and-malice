@@ -14,7 +14,7 @@ class HumanAgent:
 
         print("You are Player {}".format(player))
         print("Your topmost goal card is: {}".format(hidden_game.goal_cards[player]))
-        print("You are holding: \n{}".format(hidden_game.player_hand))
+        print("You are holding: \n{}".format(hidden_game.player_hands[hidden_game.current_player]))
         print("Your discard piles: \n{}".format(hidden_game.discard_piles[player]))
         for other_player in range(hidden_game.num_players):
             if other_player == player:

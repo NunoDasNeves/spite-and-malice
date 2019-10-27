@@ -28,40 +28,29 @@ class HiddenGame(Game):
 
         self.current_player = game.current_player
         self.winner = game.winner
-        self.goal_cards = tuple(game.goal_cards[:])
-        self.goal_pile_sizes = tuple([len(pile) for pile in game.goal_piles])
-        self.discard_piles = copy_nested(game.discard_piles, immutable=True)
-        self.play_piles = copy_nested(game.play_piles,immutable=True)
+        self.goal_cards = game.goal_cards[:]
+        self.discard_piles = copy_nested(game.discard_piles)
+        self.play_piles = copy_nested(game.play_piles)
         # mask other player hands
         self.player_hands = copy_nested(game.player_hands)
-        self.player_hands = tuple(
-            [tuple(hand) if i == self.current_player else None \
-                for i, hand in zip(range(len(self.player_hands)), self.player_hands)]
-            )
-        self.player_hand = self.player_hands[self.current_player]
+        self.player_hands = [
+            hand if i == self.current_player else None \
+                for i, hand in zip(range(len(self.player_hands)), self.player_hands)
+            ]
 
-        # The player whose perspective this hidden game is from
-        self.this_player = game.current_player
+        self.make_immutable()
 
-        # not sure if needed/useful
-        self.draw_pile_size = len(game.draw_pile)
-
-    def copy(self):
-        '''
-            Clone the hidden game object, deep copying everything except the cards themselves
-        '''
-        clone = shallow_copy(self)
-        clone.goal_cards = tuple(self.goal_cards[:])
-        clone.goal_pile_sizes = tuple(self.goal_pile_sizes[:])
-        # these can be modified by arguments
-        clone.discard_piles = copy_nested(self.discard_piles, immutable=True)
-        clone.play_piles = copy_nested(self.play_piles, immutable=True)
-        clone.player_hands = copy_nested(self.player_hands, immutable=True)
-        clone.player_hand = tuple(self.player_hand[:])
-        return clone
+    def make_immutable(self):
+        for attr, value in self.__dict__.items():
+            if attr.startswith('__'):
+                continue
+            if isinstance(value, list):
+                self.__dict__[attr] = copy_nested(value, immutable=True)
 
     def __hash__(self):
-        return hash((
+        #
+        return hash(tuple([v for a, v in self.__dict__.items() if not a.startswith('__')]))
+        '''
             self.num_players,
             self.num_decks,
             self.hand_size,
@@ -69,11 +58,11 @@ class HiddenGame(Game):
             self.current_player,
             self.winner,
             self.goal_cards,
-            self.goal_pile_sizes,
             self.discard_piles,
             self.play_piles,
-            self.player_hand
+            self.player_hands
         ))
+        '''
 
     def get_legal_moves(self):
         '''
@@ -87,7 +76,7 @@ class HiddenGame(Game):
         from_discard = []
         end_turn = []
 
-        for card in self.player_hand:
+        for card in self.player_hands[self.current_player]:
             for i in range(NUM_PLAY_PILES):
                 if self.is_valid_play(card, i):
                     from_hand.append((card, i))
@@ -140,94 +129,17 @@ class HiddenGame(Game):
 
         return "Play {} {} onto {}".format(card, from_str, on_card)
 
-    def play_from_hand(self, card, play_pile_index):
+    def do_other_work(self):
         '''
-            Play a card from the current player's hand onto a play pile
-            Returns a new game state
+            Do everything that isn't shared with Game
         '''
-        if self.winner is not None:
-            raise RuntimeError("Game is over!")
-        # validate the play
-        if card not in self.player_hand:
-            raise RuntimeError("Can't play that card - it's not in your hand!")
-        if not self.is_valid_play(card, play_pile_index):
-            raise RuntimeError("Invalid play! {} on top of {}".format(card, self.play_piles[play_pile_index]))
+        # remove full play piles
+        for i in range(len(self.play_piles)):
+            if len(self.play_piles[i]) == MAX_CARDS_PER_PLAY_PILE:
+                self.play_piles[i] = []
 
-        # make the play
-        new_hand = copy_nested(self.player_hand)
-        new_piles = copy_nested(self.play_piles)
-        new_hand.remove(card)
-        new_piles[play_pile_index].append(card)
-        # check the pile to see if it's done, and empty it if so
-        if len(new_piles[play_pile_index]) >= MAX_CARDS_PER_PLAY_PILE:
-            new_piles[play_pile_index] = []
-        # if player's hand is empty, draw another hand of cards
-        # <not done in hiddengame>
-        new_game = self.copy()
-        new_game.player_hand = copy_nested(new_hand, immutable=True)
-        new_game.play_piles = copy_nested(new_piles, immutable=True)
-        return new_game
-
-    def play_from_discard(self, discard_pile_index, play_pile_index):
-        '''
-            Play a card from one of the current player's discard piles
-            Returns a new game state
-        '''
-        if self.winner is not None:
-            raise RuntimeError("Game is over!")
-        # validate the play
-        if len(self.discard_piles[self.current_player][discard_pile_index]) == 0:
-            raise RuntimeError("Can't play from an empty discard pile!")
-        card = self.discard_piles[self.current_player][discard_pile_index][-1]
-        if not self.is_valid_play(card, play_pile_index):
-            raise RuntimeError("Invalid play! {} on top of {}".format(card, self.play_piles[play_pile_index]))
-
-        # make the play
-        new_discard = discard_piles[self.current_player][discard_pile_index].pop()
-        new_piles = play_piles[play_pile_index].append(card)
-        # check the pile to see if it's done
-        if len(new_piles[play_pile_index]) >= MAX_CARDS_PER_PLAY_PILE:
-            new_piles[play_pile_index] = []
-        
-        new_game = self.copy()
-        new_game.discard_piles = copy_nested(new_discard, immutable=True)
-        new_game.play_piles = copy_nested(new_piles, immutable=True)
-        return new_game
-
-    def play_from_goal(self, play_pile_index):
-        '''
-            Play the current player's goal card
-            Returns a new game state
-        '''
-        if self.winner is not None:
-            raise RuntimeError("Game is over!")
-        # validate the play
-        card = self.goal_cards[self.current_player]
-        if not self.is_valid_play(card, play_pile_index):
-            raise RuntimeError("Invalid play! {} on top of {}".format(card, self.play_piles[play_pile_index]))
-
-        # make the play
-        new_piles = copy_nested(self.play_piles)
-        new_goal_cards = copy_nested(self.goal_cards)
-        new_goal_sizes = copy_nested(self.goal_pile_sizes)
-        new_game = self.copy()
-
-        new_piles[play_pile_index].append(card)
-        new_goal_cards[self.current_player] = None
-        new_goal_sizes[self.current_player] -= 1
-        if new_goal_sizes[self.current_player] > 0:
-            # check the pile to see if it's done
-            if len(new_piles[play_pile_index]) >= MAX_CARDS_PER_PLAY_PILE:
-                new_piles[play_pile_index] = []
-        else:
-            # if the goal pile is empty, the current player won!
-            new_game.winner = self.current_player
-        
-        new_game.play_piles = copy_nested(new_piles, immutable=True)
-        new_game.goal_cards = tuple(new_goal_cards)
-        new_game.goal_pile_sizes = tuple(new_goal_sizes)
-
-        return new_game
+        # make lists into tuples
+        self.make_immutable()
 
     def end_turn(self, card, discard_pile_index):
         '''
