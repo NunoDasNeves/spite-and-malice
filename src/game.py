@@ -198,7 +198,7 @@ class Game:
 
         return new_game
 
-    def do_move(self, move, args):
+    def do_move(self, move):
         '''
             Do a move supplied as a tuple (move_id, args)
             return the newly created Game
@@ -207,4 +207,4 @@ class Game:
             raise RuntimeError("Game is over!")
 
         move_list = (self._play_from_goal, self._play_from_hand, self._play_from_discard, self._end_turn)
-        return move_list[move](*args)
+        return move_list[move.type](*move.args)

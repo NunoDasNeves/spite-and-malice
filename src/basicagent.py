@@ -1,6 +1,7 @@
 import random
 from hiddengame import *
 from game import *
+from move import *
 from cards import *
 
 def rig_game(game, agent_id):
@@ -29,9 +30,9 @@ class BasicAgent:
         states = []
         legal_moves = hg.get_legal_moves()
         for move_type in allowed_moves:
-            for args in legal_moves[move_type]:
-                new_hg = hg.do_move(move_type, args)
-                states.append(((move_type, args), new_hg))
+            for move in legal_moves[move_type]:
+                new_hg = hg.do_move(move)
+                states.append(new_hg)
         return states
 
     def find_path(self, hg, is_goal_state):
@@ -42,20 +43,18 @@ class BasicAgent:
         '''
         child_moves = [MOVE_PLAY_HAND, MOVE_PLAY_DISCARD, MOVE_PLAY_GOAL]
 
-        queue = [((None, None), hg)]
+        queue = [hg]
         map_back = {queue[0]: None}
         goal_state = None
 
         while len(queue) > 0:
             state = queue.pop()
-            #print([state[1].move_repr(*state[0]) for state in queue])
             # if we can play the goal card, we're done
             if is_goal_state(state):
                 goal_state = state
                 break
 
-            for child_state in self.get_child_states(state[1], allowed_moves=child_moves):
-                #print(child_state[1].play_piles)
+            for child_state in self.get_child_states(state, allowed_moves=child_moves):
                 if child_state in map_back:
                     continue
                 map_back[child_state] = state
@@ -65,27 +64,27 @@ class BasicAgent:
             return False
         
         while goal_state is not None:
-            self.path.append(goal_state[0])
+            self.path.append(goal_state.last_move)
             goal_state = map_back[goal_state]
 
-        # pop current state (None, None)
+        # pop current move (None, None)
         self.path.pop()
         return True
 
     def can_play_goal(self, hg):
-        goal_func = lambda state: True if state[0][0] == MOVE_PLAY_GOAL else False
+        goal_func = lambda state: True if state.last_move.type == MOVE_PLAY_GOAL else False
         return self.find_path(hg, goal_func)
 
     def can_empty_hand(self, hg):
-        goal_func = lambda state: True if len(state[1].player_hands[state[1].current_player]) == 0 else False
+        goal_func = lambda state: True if len(state.player_hands[state.current_player]) == 0 else False
         return self.find_path(hg, goal_func)
     
     def random_move(self, hg):
         legal_moves = hg.get_legal_moves()
         all_moves = []
-        for i, moves in zip(range(len(legal_moves)), legal_moves):
-            for args in moves:
-                all_moves.append((i, args))
+        for moves in legal_moves:
+            for move in moves:
+                all_moves.append(move)
         return all_moves[random.randrange(len(all_moves))]
 
     def get_move(self, hidden_game):
