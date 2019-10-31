@@ -112,6 +112,9 @@ class HiddenGame(Game):
 
         return "Play {} {} onto {}".format(card, from_str, on_card)
 
+    def fill_hand(self, player_id):
+        pass
+
     def do_other_work(self):
         '''
             Do everything that isn't shared with Game
@@ -121,11 +124,8 @@ class HiddenGame(Game):
             if len(self.play_piles[i]) == MAX_CARDS_PER_PLAY_PILE:
                 self.play_piles[i] = []
 
+    def do_move(self, move, args):
+        game = super().do_move(move, args)
         # make lists into tuples
-        self.make_immutable()
-
-    def end_turn(self, card, discard_pile_index):
-        '''
-            Since HiddenGame doesn't reveal much about other players, this won't be useful...
-        '''
-        raise RuntimeError("HiddenGame doesn't support end_turn!")
+        game.make_immutable()
+        return game
