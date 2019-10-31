@@ -19,7 +19,7 @@ class BasicAgent:
         # path to blindly follow (in reverse order, i.e. pop() each element)
         self.path = []
 
-    def get_child_states(self, hg):
+    def get_child_states(self, hg, allowed_moves):
         '''
             Given a HiddenGame, get all possible states made by playing
             from the hand or from the discard piles
@@ -28,7 +28,7 @@ class BasicAgent:
         '''
         states = []
         legal_moves = hg.get_legal_moves()
-        for move_type in [MOVE_PLAY_HAND, MOVE_PLAY_DISCARD, MOVE_PLAY_GOAL]:
+        for move_type in allowed_moves:
             for args in legal_moves[move_type]:
                 new_hg = hg.do_move(move_type, args)
                 states.append(((move_type, args), new_hg))
@@ -40,8 +40,7 @@ class BasicAgent:
             Store goal path in self.goal_path [(move_type, args), ...]
             Return true or false
         '''
-        if len(self.path) > 0:
-            return True
+        child_moves = [MOVE_PLAY_HAND, MOVE_PLAY_DISCARD, MOVE_PLAY_GOAL]
 
         queue = [((None, None), hg)]
         map_back = {queue[0]: None}
@@ -55,7 +54,7 @@ class BasicAgent:
                 goal_state = state
                 break
 
-            for child_state in self.get_child_states(state[1]):
+            for child_state in self.get_child_states(state[1], allowed_moves=child_moves):
                 #print(child_state[1].play_piles)
                 if child_state in map_back:
                     continue
@@ -90,6 +89,9 @@ class BasicAgent:
         return all_moves[random.randrange(len(all_moves))]
 
     def get_move(self, hidden_game):
+
+        if len(self.path) > 0:
+            return self.path.pop()
 
         # try to play a goal card at all costs
         if self.can_play_goal(hidden_game):
