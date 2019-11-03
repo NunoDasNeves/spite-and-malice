@@ -37,40 +37,37 @@ class BasicAgent:
 
     def find_path(self, hg, is_goal_state):
         '''
-            Search to find if there's a guaranteed path to play a goal card
-            Store goal path in self.goal_path [(move_type, args), ...]
-            Return true or false
+            Search to find if there's a guaranteed path to get to a state defined by the function is_goal_state
+            Return path of states in reverse order
         '''
         child_moves = [MOVE_PLAY_HAND, MOVE_PLAY_DISCARD, MOVE_PLAY_GOAL]
 
-        queue = [hg]
-        map_back = {queue[0]: None}
-        goal_state = None
+        queue = [[hg]]
+        seen = set([hg])
+        goal_path = None
 
         while len(queue) > 0:
-            state = queue.pop()
-            # if we can play the goal card, we're done
-            if is_goal_state(state):
-                goal_state = state
+
+            path = queue.pop()
+            if is_goal_state(path[-1]):
+                goal_path = path
                 break
 
-            for child_state in self.get_child_states(state, allowed_moves=child_moves):
-                if child_state in map_back:
+            for child_state in self.get_child_states(path[-1], allowed_moves=child_moves):
+                if child_state in seen:
                     continue
-                map_back[child_state] = state
-                queue.append(child_state)
+                seen.add(child_state)
+                new_path = path[:] + [child_state]
+                queue.append(new_path)
 
-        if goal_state is None:
+        if goal_path is None:
             return None
 
-        path = []
-        
-        while goal_state is not None:
-            path.append(goal_state.last_move)
-            goal_state = map_back[goal_state]
-
-        # pop current move (None, None)
-        path.pop()
+        # get the moves from the states
+        path = [state.last_move for state in goal_path]
+        # pop empty move, and reverse for later consumption
+        path.pop(0)
+        path.reverse()
         return path
 
     def find_path_to_goal(self, hg):
