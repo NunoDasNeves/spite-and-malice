@@ -61,21 +61,23 @@ class BasicAgent:
                 queue.append(child_state)
 
         if goal_state is None:
-            return False
+            return None
+
+        path = []
         
         while goal_state is not None:
-            self.path.append(goal_state.last_move)
+            path.append(goal_state.last_move)
             goal_state = map_back[goal_state]
 
         # pop current move (None, None)
-        self.path.pop()
-        return True
+        path.pop()
+        return path
 
-    def can_play_goal(self, hg):
+    def find_path_to_goal(self, hg):
         goal_func = lambda state: True if state.last_move.type == MOVE_PLAY_GOAL else False
         return self.find_path(hg, goal_func)
 
-    def can_empty_hand(self, hg):
+    def find_path_to_empty_hand(self, hg):
         goal_func = lambda state: True if len(state.player_hands[state.current_player]) == 0 else False
         return self.find_path(hg, goal_func)
     
@@ -93,11 +95,13 @@ class BasicAgent:
             return self.path.pop()
 
         # try to play a goal card at all costs
-        if self.can_play_goal(hidden_game):
+        self.path = self.find_path_to_goal(hidden_game)
+        if self.path is not None:
             return self.path.pop()
 
         # if no guaranteed goal path, try to empty hand
-        if self.can_empty_hand(hidden_game):
+        self.path = self.find_path_to_empty_hand(hidden_game):
+        if self.path is not None:
             return self.path.pop()
 
         # if can block another player, (play cards until they're blocked)
