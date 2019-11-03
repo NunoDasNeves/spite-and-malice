@@ -99,10 +99,11 @@ class Game:
             self.fill_hand()
 
         # check for winner, flip next goal card
-        if len(self.goal_piles[self.current_player]) > 0:
-            if self.goal_cards[self.current_player] is None:
-                self.goal_cards[self.current_player] = draw(self.goal_piles[self.current_player])
-        else:
+        if self.goal_cards[self.current_player] is None \
+                and len(self.goal_piles[self.current_player]) > 0:
+            self.goal_cards[self.current_player] = draw(self.goal_piles[self.current_player])
+
+        if len(self.goal_piles[self.current_player]) == 0:
             self.winner = self.current_player
     
     def _play_from_hand(self, card, play_pile_index):
