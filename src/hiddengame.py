@@ -65,11 +65,11 @@ class HiddenGame(Game):
 
         for i in range(NUM_PLAY_PILES):
             if self.is_valid_play(self.goal_cards[self.current_player], i):
-                from_goal.append(Move(MOVE_PLAY_GOAL(i,)))
+                from_goal.append(Move(MOVE_PLAY_GOAL, (i,)))
     
-    return (from_goal, from_hand, from_discard, end_turn)
+        return (from_goal, from_hand, from_discard, end_turn)
 
-    def fill_hand(self, player_id):
+    def fill_hand(self):
         pass
 
     def do_other_work(self):
