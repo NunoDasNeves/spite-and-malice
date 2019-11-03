@@ -80,6 +80,51 @@ class BasicAgent:
     def find_path_to_empty_hand(self, hg):
         goal_func = lambda state: True if len(state.player_hands[state.current_player]) == 0 else False
         return self.find_path(hg, goal_func)
+
+    def score_player_cards(self, hg):
+        '''
+            Compute a score in the range (0,8] of how valuable a players immediately playable cards are
+            Immediately playable cards are cards in the hand and discard pile
+            A score of 8 is a run of 8 cards up to the current goal card
+            A score close to 0 means most of the cards aren't near the goal card
+        '''
+        goal_card = hg.goal_cards[hg.current_player]
+        if goal_card.is_wild():
+            return 8
+        player_hand = hg.player_hands[hg.current_player]
+        top_discard_cards = [pile[-1] for pile in hg.discard_piles[hg.current_player] if len(pile)]
+
+        playable_cards = []
+        playable_cards += player_hand
+        playable_cards += top_discard_cards
+        # remove wildcards and count them up
+        num_wild = 0
+        for card in playable_cards:
+            if card.is_wild():
+                playable_cards.remove(card)
+                num_wild += 1
+        # note that making this a set removes duplicates too
+        playable_card_values = set([card.value for card in playable_cards])
+
+        score = 0
+        # this is the score that gets added as we count down from the goal card
+        curr_max_score = 1
+        # this value will decrease
+        curr_value = (goal_card.value + MAX_CARDS_PER_PLAY_PILE - 1) % MAX_CARDS_PER_PLAY_PILE
+        # count down until all possible card values are encountered
+        for _ in range(MAX_CARDS_PER_PLAY_PILE):
+            if curr_value in playable_card_values:
+                score += curr_max_score
+                playable_card_values.remove(curr_value)
+            elif num_wild > 0:
+                # fill in gaps with wild cards
+                score += curr_max_score
+                num_wild -= 1
+            else:
+                # there's a gap in the run, so futher cards can only be half as valuable
+                curr_max_score /= 2
+            curr_value = (curr_value + MAX_CARDS_PER_PLAY_PILE - 1) % MAX_CARDS_PER_PLAY_PILE
+        return score
     
     def random_move(self, hg):
         legal_moves = hg.get_legal_moves()
