@@ -33,23 +33,24 @@ class BasicAgent:
         if coalesce:
             legal_moves = list(legal_moves)
             for move_type in allowed_moves:
-                buckets = {}
                 if move_type == MOVE_END_TURN:
+                    buckets = {}
                     # each bucket contains moves that are different but actually equivalent
                     # bucket key is a tuple of (card_value, discard_pile)
                     discard_piles = hg.discard_piles[hg.current_player]
                     for move in legal_moves[move_type]:
                         card = move.args[0]
                         pile = discard_piles[move.args[1]]
+                        # TODO this doesn't work in all cases because king's value != joker's value
                         bucket_key = (card.value, pile)
                         buckets[bucket_key] = move
                         #if bucket_key in buckets:
                         #    buckets[bucket_key].append(move)
                         #else:
                         #    buckets[bucket_key] = [move]
-                # TODO more coalescing. MOVE_END_TURN is the biggest offender however
 
-                legal_moves[move_type] = buckets.values()
+                    legal_moves[move_type] = buckets.values()
+                # TODO more coalescing. MOVE_END_TURN is the biggest offender however
                 #legal_moves[move_type] = [bucket[0] for bucket in buckets.values()]
                 '''
                 for key, bucket in buckets.items():
