@@ -244,6 +244,7 @@ class BasicAgent:
         # enumerate all paths that terminate in MOVE_END_TURN
         # queue of paths, not just states
         queue = [[hg]]
+        seen = set([hg])
         best_path = None
         best_score = 0
 
@@ -268,6 +269,9 @@ class BasicAgent:
                 continue
 
             for child_state in self.get_child_states(path[-1], child_moves):
+                if child_state in seen:
+                    continue
+                seen.add(child_state)
                 new_path = path[:] + [child_state]
                 queue.append(new_path)
 
