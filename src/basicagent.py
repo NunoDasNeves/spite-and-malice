@@ -20,7 +20,7 @@ class BasicAgent:
         # path to blindly follow (in reverse order, i.e. pop() each element)
         self.path = []
 
-    def get_child_states(self, hg, allowed_moves):
+    def get_child_states(self, hg, allowed_moves, coalesce=True):
         '''
             Given a HiddenGame, get all possible states made by playing
             from the hand or from the discard piles
@@ -29,10 +29,42 @@ class BasicAgent:
         '''
         states = []
         legal_moves = hg.get_legal_moves()
+
+        if coalesce:
+            legal_moves = list(legal_moves)
+            for move_type in allowed_moves:
+                buckets = {}
+                if move_type == MOVE_END_TURN:
+                    # each bucket contains moves that are different but actually equivalent
+                    # bucket key is a tuple of (card_value, discard_pile)
+                    discard_piles = hg.discard_piles[hg.current_player]
+                    for move in legal_moves[move_type]:
+                        card = move.args[0]
+                        pile = discard_piles[move.args[1]]
+                        bucket_key = (card.value, pile)
+                        buckets[bucket_key] = move
+                        #if bucket_key in buckets:
+                        #    buckets[bucket_key].append(move)
+                        #else:
+                        #    buckets[bucket_key] = [move]
+                # TODO more coalescing. MOVE_END_TURN is the biggest offender however
+
+                legal_moves[move_type] = buckets.values()
+                #legal_moves[move_type] = [bucket[0] for bucket in buckets.values()]
+                '''
+                for key, bucket in buckets.items():
+                    print(key)
+                    for move in bucket:
+                        print(" ",move.repr(hg))
+                '''
+
+            legal_moves = tuple(legal_moves)
+
         for move_type in allowed_moves:
             for move in legal_moves[move_type]:
                 new_hg = hg.do_move(move)
                 states.append(new_hg)
+        
         return states
 
     def find_path(self, hg, is_goal_state):
