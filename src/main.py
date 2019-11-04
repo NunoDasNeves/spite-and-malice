@@ -24,14 +24,16 @@ class GameRunner:
             self.game = self.game.do_move(move)
             # stop as soon as there is a winner
             if self.game.winner is not None:
+                print ("Player {} won the game!".format(self.game.current_player))
                 return self.game.winner
-            sleep(0.5)
+            #sleep(0.5)
 
 def main():
     human_agent = HumanAgent()
     basic_agent = BasicAgent()
-    game = rig_game(Game(), 0)
-    game = GameRunner(game, [basic_agent, human_agent])
+    game = Game(goal_size=8)
+    #game = rig_game(game, 0)
+    game = GameRunner(game, [basic_agent, basic_agent])
     game.play()
 
 if __name__=='__main__':

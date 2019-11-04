@@ -1,4 +1,4 @@
-import random
+import random, time
 from hiddengame import *
 from game import *
 from move import *
@@ -84,10 +84,14 @@ class BasicAgent:
             Immediately playable cards are cards in the hand and discard pile
             A score of 8 is a run of 8 cards up to the current goal card
             A score close to 0 means most of the cards aren't near the goal card
+            Return normalized score between 0 and 1
         '''
+        MAX_SCORE = hg.hand_size + NUM_DISCARD_PILES
         goal_card = hg.goal_cards[hg.current_player]
+        # treat wild goal card as max score
+        # (TODO maybe make this higher? or something... range of 0-12 with this being 12?)
         if goal_card.is_wild():
-            return 8
+            return MAX_SCORE
         player_hand = hg.player_hands[hg.current_player]
         top_discard_cards = [pile[-1] for pile in hg.discard_piles[hg.current_player] if len(pile)]
 
@@ -121,9 +125,128 @@ class BasicAgent:
                 # there's a gap in the run, so futher cards can only be half as valuable
                 curr_max_score /= 2
             curr_value = (curr_value + MAX_CARDS_PER_PLAY_PILE - 1) % MAX_CARDS_PER_PLAY_PILE
-        return score
-    
+        # normalize
+        return score/MAX_SCORE
+
+    def score_state(self, hg, player_id):
+        '''
+            Determine how valuable a state is for player_id
+            This has a lot of room for improvement
+            Assumes current player can't empty their hand or play their goal card this turn
+            Return a score between 0 and 1
+        '''
+        # score our cards
+        new_hg = hg.copy_mutable()
+        new_hg.current_player = player_id
+        new_hg.make_immutable()
+        hand_score = self.score_player_cards(new_hg)
+
+        # this will contain numbers 0 - 5 representing how close another player is to playing
+        # their goal card (0 is they can play it NOW, 5 is they can't play it even if holding 4 wilds)
+        MAX_DANGER = 1 # hg.hand_size + 1
+        other_players_danger = [0 for _ in range(hg.num_players)]
+
+        #start = time.perf_counter()
+        
+        # score other player's hands based on what we can see
+        for player_id in range(hg.num_players):
+            if player_id == hg.current_player:
+                continue
+            # add up to hand_size wild cards to enemy player's hand
+            # determine how dangerous they are based on how many must be added for them to
+            # be able to play their goal card
+            new_hg = hg.copy_mutable()
+            new_hg.current_player = player_id
+            for num_wilds in range(MAX_DANGER):
+                new_hg.player_hands[player_id] = [Card(14, "")] * num_wilds
+                immut_hg = new_hg.copy_mutable()
+                immut_hg.make_immutable()
+                if self.find_path_to_goal(immut_hg) is not None:
+                    other_players_danger[player_id] = num_wilds
+                    break
+
+        #print(time.perf_counter() - start)
+        
+        # normalize the dangers
+        other_players_danger = [d/MAX_DANGER for d in other_players_danger]
+        # TODO modulate the danger of opposing players by the size of their goal pile
+        # higher pile means it's less dangerous (a little) to let them play
+        all_scores = other_players_danger
+        all_scores[hg.current_player] = hand_score
+        return sum([score/len(all_scores) for score in all_scores])
+
+    def do_generic_moves(self, hg):
+        '''
+            In the likely event we can't play the goal card on this turn, or empty our hand for
+            another shot at the goal, we need to strategically cycle cards out of our hand.
+        '''
+        # Some thoughts
+        # 1. predict cards in other players' hands (or what they will be holding/have available)
+        # take into account:
+        #   cards they'll draw from the draw pile
+        #   what they're already holding: e.g.
+        #       - holding onto cards means can't play or saving for goal
+        #       - close to goal but didn't play goal means don't have X card on path to goal
+        #       - in general, holding onto cards means cards further from play piles (likely)
+        #   cards they'll uncover in their goal pile
+        # 2. assume other players will play their goal if possible
+        # 3. run a minimax algorithm to simulate what might happen, and make decisions based off of that
+        # But there is a fair bit of hidden information and lots of heuristics involved in predicting what
+        # other players may be holding...
+        # 
+        # More simply just assume players have a 'range' of 1 or 2, i.e. subtract 1 or 2 from their goal card
+        # i.e. each player has actually 3 cards: goal, goal-1, goal-2
+        # (the agent can compute their own range by counting back from the goal card playable cards...)
+        # now assume others use their discard piles and their range to play the goal if possible
+        #
+        # So we want to make plays that:
+        #   don't put others within range of their goals
+        #   don't reduce own range (take into account discarding at end of turn)
+        # And secondarily:
+        #   play as many cards as possible (to free discard space & cycle the draw pile
+
+
+        # Search for the best path
+        child_moves = [MOVE_PLAY_HAND, MOVE_PLAY_DISCARD, MOVE_PLAY_GOAL, MOVE_END_TURN]
+        # enumerate all paths that terminate in MOVE_END_TURN
+        # queue of paths, not just states
+        queue = [[hg]]
+        best_path = None
+        best_score = 0
+
+        iters = 0
+
+        while len(queue) > 0:
+
+            iters += 1
+            if iters % 100 == 0:
+                print (iters)
+
+            path = queue.pop()
+            if path[-1].last_move.type == MOVE_END_TURN:
+                if best_path is None:
+                    best_path = path
+                else:
+                    # score the last state to evaluate which path to keep
+                    score = self.score_state(path[-1], hg.current_player)
+                    if score > best_score:
+                        best_path = path
+                        best_score = score
+                continue
+
+            for child_state in self.get_child_states(path[-1], child_moves):
+                new_path = path[:] + [child_state]
+                queue.append(new_path)
+
+        path = [state.last_move for state in best_path]
+        path.pop(0)
+        path.reverse()
+        return path
+
     def random_move(self, hg):
+        '''
+            Not used anymore but good as a baseline heh
+        '''
         legal_moves = hg.get_legal_moves()
         all_moves = []
         for moves in legal_moves:
@@ -142,15 +265,10 @@ class BasicAgent:
             return self.path.pop()
 
         # if no guaranteed goal path, try to empty hand
-        self.path = self.find_path_to_empty_hand(hidden_game):
+        self.path = self.find_path_to_empty_hand(hidden_game)
         if self.path is not None:
             return self.path.pop()
 
-        # if can block another player, (play cards until they're blocked)
-        #if can_block(self, hidden_game):
-        #    return self.path.pop(0)
-
-        move = self.random_move(hidden_game)
-        return move
-
-
+        # this always returns a path
+        self.path = self.do_generic_moves(hidden_game)
+        return self.path.pop()
