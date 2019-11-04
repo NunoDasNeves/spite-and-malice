@@ -3,6 +3,7 @@ from game import Game
 from hiddengame import HiddenGame
 from humanagent import HumanAgent
 from basicagent import BasicAgent, rig_game
+from randomagent import RandomAgent
 from time import sleep
 
 class GameRunner:
@@ -31,9 +32,10 @@ class GameRunner:
 def main():
     human_agent = HumanAgent()
     basic_agent = BasicAgent()
+    random_agent = RandomAgent()
     game = Game(goal_size=8)
     #game = rig_game(game, 0)
-    game = GameRunner(game, [basic_agent, basic_agent])
+    game = GameRunner(game, [basic_agent, random_agent])
     game.play()
 
 if __name__=='__main__':

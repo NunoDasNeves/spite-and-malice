@@ -278,18 +278,8 @@ class BasicAgent:
         path = [state.last_move for state in best_path]
         path.pop(0)
         path.reverse()
-        return path
 
-    def random_move(self, hg):
-        '''
-            Not used anymore but good as a baseline heh
-        '''
-        legal_moves = hg.get_legal_moves()
-        all_moves = []
-        for moves in legal_moves:
-            for move in moves:
-                all_moves.append(move)
-        return all_moves[random.randrange(len(all_moves))]
+        return path
 
     def get_move(self, hidden_game):
 
