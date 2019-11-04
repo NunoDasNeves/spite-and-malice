@@ -208,7 +208,7 @@ class BasicAgent:
         all_scores[hg.current_player] = hand_score
         return sum([score/len(all_scores) for score in all_scores])
 
-    def do_generic_moves(self, hg):
+    def do_good_moves(self, hg):
         '''
             In the likely event we can't play the goal card on this turn, or empty our hand for
             another shot at the goal, we need to strategically cycle cards out of our hand.
@@ -295,5 +295,5 @@ class BasicAgent:
             return self.path.pop()
 
         # this always returns a path
-        self.path = self.do_generic_moves(hidden_game)
+        self.path = self.do_good_moves(hidden_game)
         return self.path.pop()
