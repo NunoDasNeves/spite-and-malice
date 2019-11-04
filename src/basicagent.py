@@ -33,31 +33,44 @@ class BasicAgent:
         if coalesce:
             legal_moves = list(legal_moves)
             for move_type in allowed_moves:
-                if move_type == MOVE_END_TURN:
-                    buckets = {}
-                    # each bucket contains moves that are different but actually equivalent
-                    # bucket key is a tuple of (card_value, discard_pile)
-                    discard_piles = hg.discard_piles[hg.current_player]
-                    for move in legal_moves[move_type]:
+                # each bucket contains moves that are different but actually equivalent
+                # bucket key is a tuple of:
+                #   (MOVE_PLAY_GOAL, card_value, len(play_pile))
+                #   (MOVE_PLAY_HAND, card_value, len(play_pile))
+                #   (MOVE_PLAY_DISCARD, discard_pile, len(play_pile))
+                #   (MOVE_END_TURN, card_value, discard_pile)
+                buckets = {}
+                for move in legal_moves[move_type]:
+
+                    bucket_key = None
+
+                    if move_type == MOVE_PLAY_GOAL:
+                        card = hg.goal_cards[hg.current_player]
+                        play_pile = hg.play_piles[move.args[0]]
+                        bucket_key = (MOVE_PLAY_GOAL, card.value, len(play_pile))
+
+                    elif move_type == MOVE_PLAY_HAND:
+                        play_pile = hg.play_piles[move.args[1]]
+                        bucket_key = (MOVE_PLAY_HAND, move.args[0].value, len(play_pile))
+
+                    elif move_type == MOVE_PLAY_DISCARD:
+                        discard_pile = hg.discard_piles[hg.current_player][move.args[0]]
+                        play_pile = hg.play_piles[move.args[1]]
+                        bucket_key = (MOVE_PLAY_DISCARD, discard_pile, len(play_pile))
+
+                    elif move_type == MOVE_END_TURN:
+                        discard_piles = hg.discard_piles[hg.current_player]
                         card = move.args[0]
                         pile = discard_piles[move.args[1]]
                         # TODO this doesn't work in all cases because king's value != joker's value
-                        bucket_key = (card.value, pile)
-                        buckets[bucket_key] = move
-                        #if bucket_key in buckets:
-                        #    buckets[bucket_key].append(move)
-                        #else:
-                        #    buckets[bucket_key] = [move]
+                        bucket_key = (MOVE_END_TURN, card.value, pile)
 
-                    legal_moves[move_type] = buckets.values()
-                # TODO more coalescing. MOVE_END_TURN is the biggest offender however
-                #legal_moves[move_type] = [bucket[0] for bucket in buckets.values()]
-                '''
-                for key, bucket in buckets.items():
-                    print(key)
-                    for move in bucket:
-                        print(" ",move.repr(hg))
-                '''
+                    else:
+                        raise RuntimeError("Invalid move type!")
+
+                    buckets[bucket_key] = move
+
+                legal_moves[move_type] = buckets.values()
 
             legal_moves = tuple(legal_moves)
 
