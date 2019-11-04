@@ -27,7 +27,7 @@ class HiddenGame(Game):
             ]
 
         # store the last move
-        self.last_move = Move(None, None)
+        self.last_move = None
 
         self.make_immutable()
 

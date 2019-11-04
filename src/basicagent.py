@@ -8,7 +8,7 @@ def rig_game(game, agent_id):
     '''
         Rig a game for testing stuff
     '''
-    game.goal_cards[agent_id] = Card(9, "Spades")
+    game.goal_cards[agent_id] = Card(5, "Spades")
     game.player_hands[agent_id] = [Card(1, "Hearts"), Card(2, "Diamonds"), Card(3, "Hearts"), Card(4, "Clubs")]
     return game
 
@@ -104,7 +104,7 @@ class BasicAgent:
         return path
 
     def find_path_to_goal(self, hg):
-        goal_func = lambda state: True if state.last_move.type == MOVE_PLAY_GOAL else False
+        goal_func = lambda state: True if state.last_move is not None and state.last_move.type == MOVE_PLAY_GOAL else False
         return self.find_path(hg, goal_func)
 
     def find_path_to_empty_hand(self, hg):
@@ -238,6 +238,7 @@ class BasicAgent:
         # And secondarily:
         #   play as many cards as possible (to free discard space & cycle the draw pile
 
+        # TODO: play as many cards as possible; this isn't happening rn, throwing away good paths
 
         # Search for the best path
         child_moves = [MOVE_PLAY_HAND, MOVE_PLAY_DISCARD, MOVE_PLAY_GOAL, MOVE_END_TURN]
@@ -248,16 +249,13 @@ class BasicAgent:
         best_path = None
         best_score = 0
 
-        iters = 0
+        # TODO order the queue and cap the search depth/time
 
         while len(queue) > 0:
 
-            iters += 1
-            if iters % 100 == 0:
-                print (iters)
-
             path = queue.pop()
-            if path[-1].last_move.type == MOVE_END_TURN:
+            if path[-1].last_move is not None and path[-1].last_move.type == MOVE_END_TURN:
+
                 if best_path is None:
                     best_path = path
                 else:
