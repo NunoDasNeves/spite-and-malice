@@ -262,6 +262,8 @@ class BasicAgent:
         seen = set([hg])
         best_path = None
         best_score = 0
+        num_paths_found = 0
+        MAX_PATHS_FOUND = 100
 
         # TODO order the queue and cap the search depth/time
 
@@ -278,6 +280,12 @@ class BasicAgent:
                     if score > best_score:
                         best_path = path
                         best_score = score
+
+                # TODO: maybe don't have to do this?
+                num_paths_found += 1
+                if num_paths_found > MAX_PATHS_FOUND:
+                    break
+
                 continue
 
             for child_state in self.get_child_states(path[-1], child_moves):

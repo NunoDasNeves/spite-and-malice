@@ -17,13 +17,16 @@ def main():
     agent_types = [BasicAgent, RandomAgent]
     gamerunners = []
 
+    print('Running',end='',flush=True)
     for _ in range(args.num_games):
         agents = [agent() for agent in agent_types]
         game = Game(goal_size=10)
         #game = rig_game(game, 0)
-        game = GameRunner(game, agents, verbose=True)
+        game = GameRunner(game, agents, verbose=False)
         winner = game.play()
         gamerunners.append(game)
+        print('.',end='', flush=True)
+    print('')
     
     agent_scores = [0, 0]
     agent_move_times = [[], []]
