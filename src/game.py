@@ -80,6 +80,10 @@ class Game:
             return True
         return False
 
+    def fill_hand(self):
+        num_to_draw = self.hand_size - len(self.player_hands[self.current_player])
+        self.player_hands[self.current_player] += draw_N(self.draw_pile, num_to_draw)
+
     def do_other_work(self):
         '''
             Do everything that isn't shared between Game and subclasses
@@ -92,22 +96,21 @@ class Game:
 
         # restock current player's hand
         if len(self.player_hands[self.current_player]) == 0:
-            self.player_hands[self.current_player] = draw_N(self.draw_pile, self.hand_size)
-        
+            self.fill_hand()
+
         # check for winner, flip next goal card
-        if len(self.goal_piles[self.current_player]) > 0:
-            if self.goal_cards[self.current_player] is None:
-                self.goal_cards[self.current_player] = draw(self.goal_piles[self.current_player])
-        else:
+        if self.goal_cards[self.current_player] is None \
+                and len(self.goal_piles[self.current_player]) > 0:
+            self.goal_cards[self.current_player] = draw(self.goal_piles[self.current_player])
+
+        if len(self.goal_piles[self.current_player]) == 0:
             self.winner = self.current_player
     
-    def play_from_hand(self, card, play_pile_index):
+    def _play_from_hand(self, card, play_pile_index):
         '''
             Play a card from the current player's hand onto a play pile
             Returns a new game state
         '''
-        if self.winner is not None:
-            raise RuntimeError("Game is over!")
         # validate the play
         if card not in self.player_hands[self.current_player]:
             raise RuntimeError("Can't play that card - it's not in your hand!")
@@ -126,13 +129,11 @@ class Game:
 
         return new_game
 
-    def play_from_discard(self, discard_pile_index, play_pile_index):
+    def _play_from_discard(self, discard_pile_index, play_pile_index):
         '''
             Play a card from one of the current player's discard piles
             Returns a new game state
         '''
-        if self.winner is not None:
-            raise RuntimeError("Game is over!")
         # validate the play
         if len(self.discard_piles[self.current_player][discard_pile_index]) == 0:
             raise RuntimeError("Can't play from an empty discard pile!")
@@ -152,13 +153,11 @@ class Game:
 
         return new_game
 
-    def play_from_goal(self, play_pile_index):
+    def _play_from_goal(self, play_pile_index):
         '''
             Play the current player's goal card
             Returns a new game state
         '''
-        if self.winner is not None:
-            raise RuntimeError("Game is over!")
         # validate the play
         card = self.goal_cards[self.current_player]
         if not self.is_valid_play(card, play_pile_index):
@@ -176,13 +175,11 @@ class Game:
 
         return new_game
 
-    def end_turn(self, card, discard_pile_index):
+    def _end_turn(self, card, discard_pile_index):
         '''
             End the current player's turn, discarding one card from their hand
             Returns a new game state
         '''
-        if self.winner is not None:
-            raise RuntimeError("Game is over!")
         # check the card is in their hand
         if card not in self.player_hands[self.current_player]:
             raise RuntimeError("Can't discard that card - it's not in your hand!")
@@ -198,15 +195,17 @@ class Game:
         new_game.current_player = (new_game.current_player + 1) % new_game.num_players
 
         # Next player draws until their hand is full
-        num_to_draw = new_game.hand_size - len(new_game.player_hands[new_game.current_player])
-        new_game.player_hands[new_game.current_player] += draw_N(new_game.draw_pile, num_to_draw)
+        new_game.fill_hand()
 
         return new_game
 
-    def do_move(self, move, args):
+    def do_move(self, move):
         '''
             Do a move supplied as a tuple (move_id, args)
             return the newly created Game
         '''
-        move_list = (self.play_from_goal, self.play_from_hand, self.play_from_discard, self.end_turn)
-        return move_list[move](*args)
+        if self.winner is not None:
+            raise RuntimeError("Game is over!")
+
+        move_list = (self._play_from_goal, self._play_from_hand, self._play_from_discard, self._end_turn)
+        return move_list[move.type](*move.args)

@@ -1,37 +1,20 @@
 #!/usr/bin/env python3
+import random
+
 from game import Game
-from hiddengame import HiddenGame
 from humanagent import HumanAgent
 from basicagent import BasicAgent, rig_game
-from time import sleep
-
-class GameRunner:
-    def __init__(self, game, agents):
-        if game.num_players != len(agents):
-            raise RuntimeError("Wrong number of agents!")
-        self.game = game
-        self.agents = agents
-
-    def play(self):
-        while True:
-            # get the current agent, and ask it what move it wants to do
-            agent = self.agents[self.game.current_player]
-            hg = HiddenGame(self.game)
-            move, args = agent.get_move(hg)
-            print("Player {} => {}".format(self.game.current_player, hg.move_repr(move, args)))
-            print("=========================================================")
-            # now actually do the move
-            self.game = self.game.do_move(move, args)
-            # stop as soon as there is a winner
-            if self.game.winner is not None:
-                return self.game.winner
-            sleep(0.5)
+from randomagent import RandomAgent
+from gamerunner import GameRunner
 
 def main():
+    random.seed(None)
     human_agent = HumanAgent()
     basic_agent = BasicAgent()
-    game = rig_game(Game(), 0)
-    game = GameRunner(game, [basic_agent, human_agent])
+    random_agent = RandomAgent()
+    game = Game(goal_size=8)
+    #game = rig_game(game, 0)
+    game = GameRunner(game, [basic_agent, random_agent])
     game.play()
 
 if __name__=='__main__':

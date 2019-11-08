@@ -32,27 +32,27 @@ class HumanAgent:
             else:
                 print(" ", play_pile[-1])
 
-        chosen_move_type = None
-        chosen_move_args = None
-        while chosen_move_type is None:
+        chosen_move = None
+        while chosen_move is None:
 
             print("Choose a type of move: ")
-            for i, moves in zip(range(len(legal_moves)), legal_moves):
+            for i in range(len(MOVE_TYPES)):
+                moves = legal_moves[i]
                 if len(moves) > 0:
                     print("  {}. {}".format(i, MOVE_TYPES[i]))
                 else:
                     print("  {}. << Can't do this right now >>".format(i))
 
-            print("(0-{}): ".format(len(legal_moves)-1), end="")
+            print("(0-{}): ".format(len(MOVE_TYPES)-1), end="")
             move_type = int(input())
             move_list = legal_moves[move_type]
-            if move_type not in range(len(legal_moves)) or len(move_list) == 0:
+            if move_type not in range(len(MOVE_TYPES)) or len(move_list) == 0:
                 print("Can't do that!")
                 continue
 
             print("Okay, which move?")
-            for i, args in zip(range(len(move_list)), move_list):
-                print("  {}. {}".format(i, hidden_game.move_repr(move_type, args)))
+            for i, move in zip(range(len(move_list)), move_list):
+                print("  {}. {}".format(i, move.repr(hidden_game)))
             print("  b. Go back")
 
             print("(0-{},b): ".format(len(move_list)-1), end="")
@@ -64,9 +64,8 @@ class HumanAgent:
             if move_choice not in range(len(move_list)):
                 print("Can't do that!")
                 continue
-            chosen_move_type = move_type
-            chosen_move_args = move_list[move_choice]
+            chosen_move = move_list[move_choice]
 
-        return chosen_move_type, chosen_move_args
+        return chosen_move
 
 
