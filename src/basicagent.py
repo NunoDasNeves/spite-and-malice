@@ -19,6 +19,7 @@ class BasicAgent:
     def __init__(self):
         # path to blindly follow (in reverse order, i.e. pop() each element)
         self.path = []
+        self.name = 'BasicAgent'
 
     def get_child_states(self, hg, allowed_moves, coalesce=True):
         '''

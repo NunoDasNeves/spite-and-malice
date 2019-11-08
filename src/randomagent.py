@@ -6,6 +6,10 @@ class RandomAgent(BasicAgent):
         A simple autonomous agent
     '''
 
+    def __init__(self):
+        super().__init__()
+        self.name = 'RandomAgent'
+
     def random_move(self, hg):
         '''
             Not used anymore but good as a baseline heh
