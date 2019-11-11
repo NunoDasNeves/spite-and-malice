@@ -140,6 +140,21 @@ class BasicAgent:
         return path
 
     def find_path_to_goal(self, hg):
+        '''
+            Find and return a path to the goal card, or None if it's not possible
+            TODO:
+            IDEA: Using a simple A* runs into problems with a massive search space in cases where
+            it's not possible to play the goal card but there are many possible plays
+            So, we determine the sequence of cards directly prior to the goal which must be in the
+            discard pile/player's hand.
+            E.g. if goal is 5, then 4 (or a wild card) must be in the playable cards (or be on top of a play pile)
+            E.g. if 4 or a wild card exists, then 3 must exist in playable cards (or be on top of a play pile)
+                etc, until we have a list of cards that must go ontop of a given play pile for the goal to be possible 
+            Extending this idea, we can search for the lowest card in that sequence, then search for the next etc
+            until the goal is achieved.
+            This should be much more efficient than a blind A* search in cases where there IS a path
+            IDEA: the play pile closest to the goal card will always be the one the goal card is played on (check this)
+        '''
         goal_func = lambda state: True if state.last_move is not None and state.last_move.type == MOVE_PLAY_GOAL else False
         # heuristic is simply min distance between play piles and goal card
         def h(state):
