@@ -93,7 +93,7 @@ class BasicAgent:
         #        total += 1
         #    else:
         #        total += 1
-        return len(path[1:])
+        return len(path) - 1
         return total
 
     def find_path(self, hg, is_goal_state, heuristic):
@@ -108,12 +108,11 @@ class BasicAgent:
         queue = [[hg]]
         seen = set([hg])
         goal_path = None
-        extensions = 0
         # function for sorting paths in the queue
         f = lambda path: self.path_cost(path) + heuristic(path[-1])
 
         while len(queue) > 0:
-
+            
             path = queue.pop()
             if is_goal_state(path[-1]):
                 goal_path = path
@@ -122,10 +121,6 @@ class BasicAgent:
             for child_state in self.get_child_states(path[-1], allowed_moves=child_moves):
                 if child_state in seen:
                     continue
-                
-                extensions += 1
-                if extensions % 1000 == 0:
-                    print(extensions)
 
                 seen.add(child_state)
                 new_path = path[:] + [child_state]
@@ -133,8 +128,6 @@ class BasicAgent:
 
             # we pop from the end, so must reverse the queue
             queue.sort(key=f, reverse=True)
-        
-        #print('extensions:',extensions)
 
         if goal_path is None:
             return None
