@@ -23,10 +23,8 @@ class BasicAgent:
 
     def get_child_states(self, hg, allowed_moves, coalesce=True):
         '''
-            Given a HiddenGame, get all possible states made by playing
-            from the hand or from the discard piles
-            Return a list of tuples (move, HiddenGame)
-            Where move = (move_type, args)
+            Given a HiddenGame, get all possible states made by playing the allowed_moves types
+            Return a tuple of HiddenGames
         '''
         states = []
         legal_moves = hg.get_legal_moves()
@@ -82,9 +80,27 @@ class BasicAgent:
         
         return states
 
-    def find_path(self, hg, is_goal_state):
+    def path_cost(self, path):
         '''
-            Search to find if there's a guaranteed path to get to a state defined by the function is_goal_state
+            Used in find_path
+            'Cost' of a path is simple for now; 1 per move
+            TODO: Slightly disincentivises playing wildcards, saving them for later plays
+        '''
+        total = 0
+        # first state is always the current hg with last_move=None, don't include it
+        #for state in path[1:]:
+        #    if state.last_move.type == MOVE_PLAY_HAND and state.last_move.args[0].is_wild():
+        #        total += 1
+        #    else:
+        #        total += 1
+        return len(path[1:])
+        return total
+
+    def find_path(self, hg, is_goal_state, heuristic):
+        '''
+            A* search to find if there's a guaranteed path to get to a state defined by the function is_goal_state
+            is_goal_state(state) returns true if state is a goal state
+            heuristic(state) returns an estimate of the minimum distance to the goal
             Return path of states in reverse order
         '''
         child_moves = [MOVE_PLAY_HAND, MOVE_PLAY_DISCARD, MOVE_PLAY_GOAL]
@@ -92,6 +108,9 @@ class BasicAgent:
         queue = [[hg]]
         seen = set([hg])
         goal_path = None
+        extensions = 0
+        # function for sorting paths in the queue
+        f = lambda path: self.path_cost(path) + heuristic(path[-1])
 
         while len(queue) > 0:
 
@@ -103,9 +122,19 @@ class BasicAgent:
             for child_state in self.get_child_states(path[-1], allowed_moves=child_moves):
                 if child_state in seen:
                     continue
+                
+                extensions += 1
+                if extensions % 1000 == 0:
+                    print(extensions)
+
                 seen.add(child_state)
                 new_path = path[:] + [child_state]
                 queue.append(new_path)
+
+            # we pop from the end, so must reverse the queue
+            queue.sort(key=f, reverse=True)
+        
+        #print('extensions:',extensions)
 
         if goal_path is None:
             return None
@@ -119,11 +148,20 @@ class BasicAgent:
 
     def find_path_to_goal(self, hg):
         goal_func = lambda state: True if state.last_move is not None and state.last_move.type == MOVE_PLAY_GOAL else False
-        return self.find_path(hg, goal_func)
+        # heuristic is simply min distance between play piles and goal card
+        def h(state):
+            goal_card = state.goal_cards[state.current_player]
+            if goal_func(state) or goal_card is None or goal_card.is_wild():
+                return 0
+            pile_diffs = [(goal_card.value - 1 - len(pile) + MAX_CARDS_PER_PLAY_PILE) % MAX_CARDS_PER_PLAY_PILE for pile in state.play_piles]
+            return min(pile_diffs)
+        
+        return self.find_path(hg, goal_func, h)
 
     def find_path_to_empty_hand(self, hg):
         goal_func = lambda state: True if len(state.player_hands[state.current_player]) == 0 else False
-        return self.find_path(hg, goal_func)
+        h = lambda state: len(state.player_hands[state.current_player])
+        return self.find_path(hg, goal_func, h)
 
     def score_player_cards(self, hg):
         '''
@@ -182,6 +220,13 @@ class BasicAgent:
             Assumes current player can't empty their hand or play their goal card this turn
             Return a score between 0 and 1
         '''
+        '''
+            How to score a state:
+            - Look at immediately playable cards; what is the reach?
+            - Look at opponents; how close are they to playing their goal?
+            - Look at discard piles; are they flexible/not blocking potential plays?
+            - Look at hand; do we have wildcards?
+        '''
         # score our cards
         new_hg = hg.copy_mutable()
         new_hg.current_player = player_id
@@ -193,8 +238,6 @@ class BasicAgent:
         MAX_DANGER = 1 # hg.hand_size + 1
         other_players_danger = [0 for _ in range(hg.num_players)]
 
-        #start = time.perf_counter()
-        
         # score other player's hands based on what we can see
         for player_id in range(hg.num_players):
             if player_id == hg.current_player:
@@ -212,8 +255,6 @@ class BasicAgent:
                     other_players_danger[player_id] = num_wilds
                     break
 
-        #print(time.perf_counter() - start)
-        
         # normalize the dangers
         other_players_danger = [d/MAX_DANGER for d in other_players_danger]
         # TODO modulate the danger of opposing players by the size of their goal pile
@@ -267,6 +308,8 @@ class BasicAgent:
 
         # TODO order the queue and cap the search depth/time
 
+        start = time.perf_counter()
+
         while len(queue) > 0:
 
             path = queue.pop()
@@ -294,6 +337,8 @@ class BasicAgent:
                 seen.add(child_state)
                 new_path = path[:] + [child_state]
                 queue.append(new_path)
+
+        #print(time.perf_counter() - start)
 
         path = [state.last_move for state in best_path]
         path.pop(0)
