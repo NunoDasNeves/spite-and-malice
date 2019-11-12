@@ -139,6 +139,17 @@ class BasicAgent:
         path.reverse()
         return path
 
+    def min_dist_to_play_pile(self, hg, card):
+        '''
+            Return minimum distance in moves from the top of a play pile in hg to a given card
+            Include the move of putting the card on the pile
+            e.g. a play pile of length 2 and a card of value 4 are a distance 2 moves away
+        '''
+        if card.is_wild():
+            return 1
+        pile_diffs = [(card.value - 1 - len(pile) + MAX_CARDS_PER_PLAY_PILE) % MAX_CARDS_PER_PLAY_PILE for pile in hg.play_piles]
+        return min(pile_diffs)
+
     def find_path_to_goal(self, hg):
         '''
             Find and return a path to the goal card, or None if it's not possible
@@ -150,19 +161,59 @@ class BasicAgent:
             E.g. if goal is 5, then 4 (or a wild card) must be in the playable cards (or be on top of a play pile)
             E.g. if 4 or a wild card exists, then 3 must exist in playable cards (or be on top of a play pile)
                 etc, until we have a list of cards that must go ontop of a given play pile for the goal to be possible 
-            Extending this idea, we can search for the lowest card in that sequence, then search for the next etc
+            We can use this as a better metric to determine if find_path will succeed
+            IDEA: Extending this idea, we can search for the lowest card in that sequence, then search for the next etc
             until the goal is achieved.
             This should be much more efficient than a blind A* search in cases where there IS a path
             IDEA: the play pile closest to the goal card will always be the one the goal card is played on (check this)
         '''
+
+        goal_card = hg.goal_cards[hg.current_player]
+
+        if goal_card.is_wild():
+            # TODO: maximize options after playing wild goal card instead of just being dumb here
+            return [Move(MOVE_PLAY_GOAL, (0,))]
+
+        # TODO make this find the path also; for now it just improves find_path
+
+        # get playable card values
+        playable_cards = list(hg.player_hands[hg.current_player])
+        playable_cards += [card for pile in hg.discard_piles[hg.current_player] for card in pile]
+        playable_card_values = [card.value for card in playable_cards]
+
+        min_dist = self.min_dist_to_play_pile(hg, goal_card)
+
+        # if min_dist == 2 then we want to only check 1 previous card, so -1 here: 
+        for i in range(1, min_dist - 1):
+            curr_value = (goal_card.value - i + MAX_CARDS_PER_PLAY_PILE) % MAX_CARDS_PER_PLAY_PILE
+            # is the previous card (potentially) playable this turn?
+            if curr_value in playable_card_values:
+                # Remove from the list
+                playable_card_values.remove(curr_value)
+                continue
+
+            # check if there's a wildcard that may be of service instead
+            wild_val = None
+            for val in playable_card_values:
+                if val in WILD_VALUES:
+                    wild_val = val
+                    break
+            if wild_val is None:
+                return None
+            else:
+                playable_card_values.remove(wild_val)
+
+        # Now we know at least that all the cards exist to make it to the goal card
+
+        # Normal search
         goal_func = lambda state: True if state.last_move is not None and state.last_move.type == MOVE_PLAY_GOAL else False
         # heuristic is simply min distance between play piles and goal card
         def h(state):
             goal_card = state.goal_cards[state.current_player]
-            if goal_func(state) or goal_card is None or goal_card.is_wild():
+            # TODO figure out what correct check is here
+            if goal_func(state) or state.goal_cards[state.current_player] is None:
                 return 0
-            pile_diffs = [(goal_card.value - 1 - len(pile) + MAX_CARDS_PER_PLAY_PILE) % MAX_CARDS_PER_PLAY_PILE for pile in state.play_piles]
-            return min(pile_diffs)
+            return self.min_dist_to_play_pile(state, goal_card)
         
         return self.find_path(hg, goal_func, h)
 
