@@ -8,45 +8,69 @@ NUM_CARDS_PER_DECK=54
 NUM_JOKERS_PER_DECK=2
 NUM_SUITES=4
 SUITES=["Diamonds", "Hearts", "Clubs", "Spades"]
-VALUE_TO_CARD_NAME={
-        1: "Ace",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5",
-        6: "6",
-        7: "7",
-        8: "8",
-        9: "9",
-        10: "10",
-        11: "Jack",
-        12: "Queen",
-        13: "King",
-        14: "Joker"
+# card types
+CARD_ACE = 1
+CARD_2 = 2
+CARD_3 = 3
+CARD_4 = 4
+CARD_5 = 5
+CARD_6 = 6
+CARD_7 = 7
+CARD_8 = 8
+CARD_9 = 9
+CARD_10 = 10
+CARD_JACK = 11
+CARD_QUEEN = 12
+CARD_KING = 13
+CARD_JOKER = 14
+
+CARD_TYPE_TO_NAME={
+        CARD_ACE: "Ace",
+        CARD_2: "2",
+        CARD_3: "3",
+        CARD_4: "4",
+        CARD_5: "5",
+        CARD_6: "6",
+        CARD_7: "7",
+        CARD_8: "8",
+        CARD_9: "9",
+        CARD_10: "10",
+        CARD_JACK: "Jack",
+        CARD_QUEEN: "Queen",
+        CARD_KING: "King",
+        CARD_JOKER: "Joker"
         }
-WILD_VALUES=[13,14]
+WILD_TYPES=[13,14]
+WILD_VALUE=99
+CARD_TYPE_TO_VALUE={
+    key:(key if key not in WILD_TYPES else WILD_VALUE) \
+        for key in CARD_TYPE_TO_NAME.keys()
+    }
 
 class Card:
     '''
         A card in the game spite and malice
     '''
-    def __init__(self, value, suite):
-        self.value = value
+    def __init__(self, ctype, suite):
+        self.ctype = ctype
         self.suite = suite
+        self.value = CARD_TYPE_TO_VALUE[self.ctype]
 
     def is_wild(self):
-        return self.value in WILD_VALUES
+        return self.value == WILD_VALUE
 
     def __hash__(self):
-        return 13 if self.is_wild() else self.value
+        return self.value
 
     def __repr__(self):
-        if self.value == 14:
-            return "Joker"
-        return "{} of {}".format(VALUE_TO_CARD_NAME[self.value], self.suite)
+        if self.ctype == CARD_JOKER:
+            return CARD_TYPE_TO_NAME[self.ctype]
+        return "{} of {}".format(CARD_TYPE_TO_NAME[self.ctype], self.suite)
 
-DECK=[Card(value, suite) for value in list(VALUE_TO_CARD_NAME.keys())[:13] for suite in SUITES] + \
-        [Card(14, None), Card(14, None)]
+DECK = [Card(ctype, suite) \
+    for ctype in [t for t in CARD_TYPE_TO_NAME.keys() if t != CARD_JOKER] \
+        for suite in SUITES]
+DECK += [Card(CARD_JOKER, None)]*2
 
 def make_decks(N):
     '''

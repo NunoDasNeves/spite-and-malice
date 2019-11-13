@@ -195,7 +195,7 @@ class BasicAgent:
             # check if there's a wildcard that may be of service instead
             wild_val = None
             for val in playable_card_values:
-                if val in WILD_VALUES:
+                if val == WILD_VALUE:
                     wild_val = val
                     break
             if wild_val is None:
