@@ -141,14 +141,28 @@ class BasicAgent:
 
     def min_dist_to_play_pile(self, hg, card):
         '''
-            Return minimum distance in moves from the top of a play pile in hg to a given card
+            Get minimum distance in moves from the top of a play pile in hg to a given card
             Include the move of putting the card on the pile
             e.g. a play pile of length 2 and a card of value 4 are a distance 2 moves away
+            Returns a tuple of pla_pile_index, min_dist
         '''
         if card.is_wild():
             return 1
         pile_diffs = [(card.value - 1 - len(pile) + MAX_CARDS_PER_PLAY_PILE) % MAX_CARDS_PER_PLAY_PILE for pile in hg.play_piles]
-        return min(pile_diffs)
+
+        zip(range(len(pile_diffs)), pile_diffs)
+
+        return min(pile_diffs, key=lambda t: t[1])
+    
+    def get_goal_card_heuristic(self, hg, goal_card, goal_func):
+        # heuristic is simply min distance between play piles and goal card
+        h = lambda state: TODO
+        def h(state):
+            # TODO figure out what correct check is here
+            if goal_func(state) or state.goal_cards[state.current_player] is None:
+                return 0
+            _, dist = self.min_dist_to_play_pile(state, goal_card)
+            return dist
 
     def find_path_to_goal(self, hg):
         '''
@@ -177,43 +191,58 @@ class BasicAgent:
         # TODO make this find the path also; for now it just improves find_path
 
         # get playable card values
-        playable_cards = list(hg.player_hands[hg.current_player])
-        playable_cards += [card for pile in hg.discard_piles[hg.current_player] for card in pile]
-        playable_card_values = [card.value for card in playable_cards]
+        playable_cards_with_moves = [(MOVE_PLAY_FROM_HAND, card) for card in hg.player_hands[hg.current_player]]
+        playable_cards_with_moves += [(MOVE_PLAY_FROM_DISCARD, card) for pile in hg.discard_piles[hg.current_player] for card in pile]
+        # we'll need just the cards too
+        playable_cards = [card for move, card in playable_cards_with_moves]
 
-        min_dist = self.min_dist_to_play_pile(hg, goal_card)
+        # we'll populate this with the values that should be used on the path to the goal
+        # we need this to show where wildcards are needed
+        values_on_path = []
+
+        pile_index, min_dist = self.min_dist_to_play_pile(hg, goal_card)
 
         # if min_dist == 2 then we want to only check 1 previous card, so -1 here: 
         for i in range(1, min_dist - 1):
-            curr_value = (goal_card.value - i + MAX_CARDS_PER_PLAY_PILE) % MAX_CARDS_PER_PLAY_PILE
+
             # is the previous card (potentially) playable this turn?
-            if curr_value in playable_card_values:
-                # Remove from the list
-                playable_card_values.remove(curr_value)
+            curr_value = (goal_card.value - i + MAX_CARDS_PER_PLAY_PILE) % MAX_CARDS_PER_PLAY_PILE
+            matches = [card for card in playable_cards if card.value == curr_value]
+            if len(matches) > 0:
+                values_on_path.append(curr_value)
+                playable_cards.remove(matches[0])
                 continue
 
             # check if there's a wildcard that may be of service instead
-            wild_val = None
-            for val in playable_card_values:
-                if val == WILD_VALUE:
-                    wild_val = val
-                    break
-            if wild_val is None:
-                return None
-            else:
-                playable_card_values.remove(wild_val)
+            matches = [card for card in playable_cards if card.is_wild()]
+            if len(matches) > 0:
+                # remove the single wildcard
+                values_on_path.append(WILD_VALUE)
+                playable_cards.remove(matches[0])
+                continue
+
+            return None
 
         # Now we know at least that all the cards exist to make it to the goal card
 
+        # it's reversed initially
+        values_on_path.reverse()
+        playable_cards = playable_cards_copy
+        # list of paths to expand
+        current_paths = []
+
+        for curr_value in values_on_path:
+            # iterate through playable cards with that value, and get the move associated with playing that card too
+            for move, card in [(move, card) for move, card in playable_cards_with_moves if card.value == curr_value]:
+                # try and make a path to that card
+                goal_func = lambda state: state.last_move is not None and state.last_move.type == move and state.last_move.to_card(state).value == curr_value
+                h = self.get_goal_card_heuristic(goal_func)
+                path = self.find_path(hg, goal_func, h)
+
+
+
         # Normal search
         goal_func = lambda state: True if state.last_move is not None and state.last_move.type == MOVE_PLAY_GOAL else False
-        # heuristic is simply min distance between play piles and goal card
-        def h(state):
-            goal_card = state.goal_cards[state.current_player]
-            # TODO figure out what correct check is here
-            if goal_func(state) or state.goal_cards[state.current_player] is None:
-                return 0
-            return self.min_dist_to_play_pile(state, goal_card)
         
         return self.find_path(hg, goal_func, h)
 

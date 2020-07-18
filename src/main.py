@@ -8,7 +8,9 @@ from randomagent import RandomAgent
 from gamerunner import GameRunner
 
 def main():
-    random.seed(None)
+    # seeds
+    # 37 - path with lots of depth (>7) that doesn't lead to goal card
+    random.seed(37)
     human_agent = HumanAgent()
     basic_agent = BasicAgent()
     random_agent = RandomAgent()
